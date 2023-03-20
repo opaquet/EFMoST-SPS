@@ -10,9 +10,8 @@
 /*
 Serial commands must start with "!"
 They start with a keyword and end wit a list of up to 8 interger parameters in parenteses (comma separated)
---> !mode(3,0)
---> !set(0,1,53)
---> !get() or !get
+--> !set_mode(3,0)
+--> !get_panel() or !get_panel
 */
 
 // structure to hold parsed command -> 66 bytes
@@ -23,21 +22,28 @@ struct serial_cmd_t {
 };
 
 // type of callback method (should return 0 for valid command)
-typedef void (*cb_fun)(serial_cmd_t);
+typedef void (*cb_cmd)(serial_cmd_t);
+typedef void (*cb_data)(Measurements);
 
 class Serial_Com {
 public:
     Serial_Com();
-    void begin(uint32_t baud, cb_fun CB);
+    void begin(uint32_t baud, cb_cmd CCB, cb_data DCB);
     void CmdOK();
     void CmdFAIL();
-    void SendAll();
-    void SendState(uint16_t btnt, uint16_t btnd);
+    void OK();
+    void SendDebug();
+    void SendBtn(uint16_t top_btn, uint16_t bottom_btn);
+    void SendST();
+    void SendSP();
+    void SendCtrl();
+    void SendOut();
     void parse_command0();
     void parse_command1();
     void read_serial0();
     void read_serial1();
-    cb_fun Callback = nullptr;
+    cb_cmd CmdCallback = nullptr;
+    cb_data DataCallback = nullptr; 
 
 private:
     char send_string_buf[64];
@@ -47,10 +53,8 @@ private:
     uint8_t buf_pos1 = 0;
     boolean SerialCmdValid0 = false;
     boolean SerialCmdValid1 = false;
-    char* SerialCommand;
-    char* SerialArguments;
-    char* SerialToken;
     const char SerialCommandDelim[5] = " ,;-";
+    const char SerialDataDelim[4] = " ;-";
 };
 
 #endif

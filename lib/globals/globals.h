@@ -5,10 +5,23 @@
 #ifndef GLOBAL
 #define GLOBAL
 
-// ********* Define statements *********
-#define SERIAL_BAUD_RATE 115200
-#define I2C_CLOCK_RATE 400000
-#define LOOP_PERIOD 100
+// general definition
+#define DEVICE   "EFMoST SPS"
+#define VERSION  "0.9.5"
+
+// variable ranges
+#define MinLevel    0       // cm
+#define MaxLevel    150     // cm
+#define MinRPM      0       // U/min
+#define MaxRPM      384     // U/min
+#define MinAiration 0       // L/min
+#define MaxAiration 900     // L/min
+#define MinFeed     0       // L/h
+#define MaxFeed     378     // L/h
+#define MinTemp     0       // 0,1 °C -> 0 °C
+#define MaxTemp     500     // 0,1 °C -> 50 °C
+#define MinConc     100     // 0,1 % -> 10 %
+#define MaxConc     1000    // 0,1 % -> 100 %
 
 // i2c adress definitions
 #define DISPLAY0 0x20
@@ -16,48 +29,24 @@
 #define DISPLAY2 0x22
 #define DISPLAY3 0x23
 #define DISPLAY4 0x24
-#define DISPLAY5 0x25
+#define DISPLAY5 0x27
+#define i2c_Clock   800000L // 800 kHz should work? 
 
-// pin definitions
-#define SR_DATA 15
-#define SR_CLOCK 16
-#define SR_LATCH 17
+// serial connection
+#define SERIAL0_BAUD_RATE 115200
+#define SERIAL1_BAUD_RATE 19200
+
+
+enum  {FluidLevel, FilterSpeed, Airation, FeedRate, Temp, ConcentrationFraction, Press1, Press2, Temp2, Temp3, Ox, H2S, pH, Conduct, Distance};
 
 // ********* global Variables *********
-extern uint16_t g_analog_control_out[3];
-extern uint16_t g_digital_control_out;
-extern uint16_t g_analog_values[5]; // 6 poti values and 10 anaolg inputs or sensor readings
-extern boolean g_auto_state[6];
-extern boolean g_control[7];
-extern boolean g_alarm[6];
-extern boolean g_direct_control;
-
-struct Measurements {
-    float Temp1;
-    float Temp2;
-    float pH;
-    float Conduct;
-    float Ox1;
-    float Ox2;
-    float H2S;
-    uint16_t Press1;
-    uint16_t Press2;
-    uint16_t FluidLevel;
-    uint16_t Speed_FeedPump;
-    uint16_t Speed_Filter;
-    uint16_t Pos_AirationValve;
-    uint16_t Concentration_Fraction;
-};
-extern Measurements g_ProcessState;
-
-struct SetPoints {
-    uint16_t FluidLevel;
-    uint16_t Speed_Filter;
-    uint16_t Rate_Airation;
-    uint16_t Speed_FeedPump;
-    uint16_t Temp;
-    uint16_t Concentration_Fraction;
-};
-extern SetPoints g_Setpoints;
+extern uint16_t     g_analog_control_out[3];
+extern uint16_t     g_digital_control_out;
+extern boolean      g_auto_state[6];
+extern boolean      g_control[7];
+extern boolean      g_alarm[6];
+extern boolean      g_direct_control;
+extern uint16_t     g_ProcessState[15];
+extern uint16_t     g_Setpoints[6];
 
 #endif

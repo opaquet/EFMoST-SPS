@@ -10,6 +10,26 @@ void Serial_Com::begin(cb_cmd CCB, cb_data DCB) {
     DataCallback = DCB;
 }
 
+bool Serial_Com::validBaud(uint32_t BaudRate) {
+    if ((BaudRate == 300)|| 
+        (BaudRate == 1200)||
+        (BaudRate == 2400)||
+        (BaudRate == 4800)||
+        (BaudRate == 9600)|| 
+        (BaudRate == 19200)||
+        (BaudRate == 38400)||
+        (BaudRate == 57600)||
+        (BaudRate == 115200)||
+        (BaudRate == 230400)||
+        (BaudRate == 250000)||
+        (BaudRate == 500000)||
+        (BaudRate == 1000000)||
+        (BaudRate == 2000000)) 
+        return true;
+    else
+        return false;
+}
+
 void Serial_Com::reinit0(uint32_t Baud) {
     baud0 = Baud;
     Serial.begin(Baud);
@@ -137,7 +157,7 @@ void Serial_Com::parse_command0() {
 // parse measurement string coming from Serial1
 void Serial_Com::parse_command1() {
     if (relay_serial) {
-        Serial.print(F("{\"Relay\":\"}"));
+        Serial.print(F("{\"Relay\":\""));
         Serial.print(serial_buf1);
         Serial.println(F("\"}"));
     }
@@ -171,8 +191,8 @@ void Serial_Com::read_serial0() {
             if (SerialCmdValid0) {
                 serial_buf0[buf_pos0++] = 0;
                 SerialCmdValid0 = false;
-                buf_pos0 = 0;
                 parse_command0();
+                buf_pos0 = 0;
             }
             break;
         default:
@@ -200,6 +220,7 @@ void Serial_Com::read_serial1() {
             }
             break;
         case '?':
+        case '\r':
         case '\n':
             if (SerialCmdValid1) {
                 serial_buf1[buf_pos1++] = 0;

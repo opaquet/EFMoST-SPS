@@ -41,6 +41,7 @@ class Serial_Com {
 public:
     Serial_Com();
     void begin(cb_cmd CCB, cb_data DCB);
+    bool validBaud(uint32_t BaudRate);
     void reinit0(uint32_t baud);
     void reinit1(uint32_t baud);
     void CmdOK();

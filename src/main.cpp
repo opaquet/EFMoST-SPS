@@ -46,32 +46,24 @@ ISR(TIMER5_COMPA_vect) {
 
 // interpret and execute commands that were recieved via serial0
 void serial_cmd_exec(serial_cmd_t cmd) {
-    if        (strcmp(cmd.command, "set_point") == 0) {  // set Setpoints (only when in automatic mode)
-        if (cmd.nargs == 2) {
-            if (cmd.args[0] < 6) {
-                if (g_auto_state[cmd.args[0]]) {
-                    g_Setpoints[cmd.args[0]] = cmd.args[1]; 
-                    scom.CmdOK();     
-                    scom.lastsend = 0;
-                }
-            } else scom.CmdFAIL();
-        } else scom.CmdFAIL();
+    boolean cmdOK = false;
+    if (strcmp(cmd.command, "set_point") == 0) {  // set Setpoints (only when in automatic mode)
+        if ((cmd.nargs == 2) && (cmd.args[0] < 6) && (g_auto_state[cmd.args[0]])) {
+            g_Setpoints[cmd.args[0]] = cmd.args[1]; 
+            cmdOK = true;     
+        } 
 
     } else if (strcmp(cmd.command, "alarm_ignore") == 0) { // ignore alarm
-        if (cmd.nargs == 1) {
-            if (cmd.args[0] < 6) {
-                g_alarm_ignore[cmd.args[0]] = true;
-                scom.CmdOK(); 
-            } else scom.CmdFAIL();
-        } else scom.CmdFAIL();
+        if ((cmd.nargs == 1) && (cmd.args[0] < 6)) {
+            g_alarm_ignore[cmd.args[0]] = true;
+            cmdOK = true; 
+        } 
         if (cmd.nargs == 0) {
             for (uint8_t i=0; i<6; i++) {
                 g_alarm_ignore[i] = true;
-                
             }
-            scom.CmdOK(); 
-        } else scom.CmdFAIL();
-
+            cmdOK = true; 
+        } 
     } else if (strcmp(cmd.command, "dctrl") == 0) { // enable or disable direct control mode
         if (cmd.nargs == 1) g_direct_control = cmd.args[0];
         if (g_direct_control){
@@ -84,10 +76,11 @@ void serial_cmd_exec(serial_cmd_t cmd) {
                 g_alarm_ignore[i] = false;
             }
         }
-        scom.CmdOK();
+        cmdOK = true; 
         scom.lastsend = 0;
     } else if (strcmp(cmd.command, "dctrl_set") == 0) { // directly set outputs/actators
          if (cmd.nargs == 3) {
+            cmdOK = true; 
             switch (cmd.args[0]) {
             case 0:
                 if (cmd.args[1] > 16) break;
@@ -96,80 +89,73 @@ void serial_cmd_exec(serial_cmd_t cmd) {
                 } else {
                     g_digital_control_out &= ~_BV(cmd.args[1]);
                 }
-                scom.CmdOK();
                 scom.lastsend = 0;
                 break;
             case 1:
                 if (cmd.args[1] > 3) break;
                 g_analog_control_out[cmd.args[1]] = cmd.args[2];
-                scom.CmdOK();
                 scom.lastsend = 0;
                 break;
             default:
-                scom.CmdFAIL();
+                cmdOK = false; 
                 break;
             }
-        } else scom.CmdFAIL();
+        } 
     } else if (strcmp(cmd.command, "set_mode") == 0) { // change auto/manual mode
-        if (cmd.nargs == 2) {
-            if (cmd.args[0] < 6) {
-                g_auto_state[cmd.args[0]] = cmd.args[1];
-                scom.CmdOK();
-                scom.lastsend = 0;
-            } else scom.CmdFAIL();
-        } else scom.CmdFAIL();
-
+        if ((cmd.nargs == 2) && (cmd.args[0] < 6)) {
+            g_auto_state[cmd.args[0]] = cmd.args[1];
+            cmdOK = true; 
+            scom.lastsend = 0;
+        } 
     } else if (strcmp(cmd.command, "mmcu_baud") == 0) { // change auto/manual mode
-        if (cmd.nargs == 1) {
-            if ((cmd.args[0] == 300)|(cmd.args[0] == 1200)|(cmd.args[0] == 2400)|(cmd.args[0] == 4800)|(cmd.args[0] == 9600)| (cmd.args[0] == 19200)|(cmd.args[0] == 57600)|(cmd.args[0] == 115200)|(cmd.args[0] == 230400)|(cmd.args[0] == 250000)|(cmd.args[0] == 500000)|(cmd.args[0] == 1000000)|(cmd.args[0] == 2000000)) {
-                scom.reinit1(cmd.args[0]);
-                scom.CmdOK();
-            } else scom.CmdFAIL();
-        } else scom.CmdFAIL();
+        if ((cmd.nargs == 1) && scom.validBaud(cmd.args[0])) {
+            scom.reinit1(cmd.args[0]);
+            cmdOK = true; 
+        } 
     } else if (strcmp(cmd.command, "sps_baud") == 0) { // change auto/manual mode
-        if (cmd.nargs == 1) {
-            if ((cmd.args[0] == 300)|(cmd.args[0] == 1200)|(cmd.args[0] == 2400)|(cmd.args[0] == 4800)|(cmd.args[0] == 9600)| (cmd.args[0] == 19200)|(cmd.args[0] == 57600)|(cmd.args[0] == 115200)|(cmd.args[0] == 230400)|(cmd.args[0] == 250000)|(cmd.args[0] == 500000)|(cmd.args[0] == 1000000)|(cmd.args[0] == 2000000)) {
-                scom.CmdOK();
-                scom.reinit0(cmd.args[0]);
-            } else scom.CmdFAIL();
-        } else scom.CmdFAIL();
+        if ((cmd.nargs == 1) && scom.validBaud(cmd.args[0])) {
+            scom.reinit0(cmd.args[0]);
+            cmdOK = true; 
+        } 
     } else if (strcmp(cmd.command, "set_active") == 0) { // /(de)activate control outputs (if mode is set to auto)
-        if (cmd.nargs == 2) {
-            if (cmd.args[0] < 6) {
-                if (g_auto_state[cmd.args[0]]) g_control[cmd.args[0]] = cmd.args[1];
-                scom.CmdOK();
-                scom.lastsend = 0;
-            } else scom.CmdFAIL();
-        } else scom.CmdFAIL();
+        if ((cmd.nargs == 2) && (cmd.args[0] < 6) && (g_auto_state[cmd.args[0]])) {
+            g_control[cmd.args[0]] = cmd.args[1];
+            cmdOK = true; 
+            scom.lastsend = 0;
+        } 
     } else if (strcmp(cmd.command, "reset") == 0) { // reset mcu
         scom.CmdOK();
-        delay(10);
+        delay(100);
         asm volatile ("jmp 0");
+        return; //will never be reached...
     } else if (strcmp(cmd.command, "relay_serial") == 0) { // enable or disable the relaying of any serial data recieved from serial1 out to serial0
-        if (cmd.nargs == 1) scom.relay_serial = cmd.args[0];
-        scom.CmdOK();
+        if (cmd.nargs == 1) {
+            scom.relay_serial = cmd.args[0];
+            cmdOK = true; 
+        }
     } else if (strcmp(cmd.command, "send_freq") == 0) { // change send frequency
         if (cmd.nargs == 1) {
             if (cmd.args[0] < 5760000/scom.baud0)
                 scom.autosend_delay = 5760000/scom.baud0;
             else
                 scom.autosend_delay = cmd.args[0];
-            scom.CmdOK();
+            cmdOK = true; 
         }
-        
     } else if (strcmp(cmd.command, "state") == 0) { // get Systemstate
         scom.SendStateJSON();
+        return; // send no other confirmation
     } else if (strcmp(cmd.command, "connect") == 0) { // send device information and start autosend
-        scom.CmdOK();
         scom.autosend = true;
+        cmdOK = true; 
     } else if (strcmp(cmd.command, "dev") == 0) { // send device information and start autosend
         scom.SendDev();
+        return; // send no other confirmation
     } else if (strcmp(cmd.command, "disconnect") == 0) { // send device information and start autosend
-        scom.CmdOK();
+        cmdOK = true; 
         scom.autosend = false;
-    } else {
-        scom.CmdFAIL();
     }
+    if (cmdOK) scom.CmdOK();
+    else scom.CmdFAIL();
 }
 
 // copy and evaluate new data from measurement MCU recieved via serial1

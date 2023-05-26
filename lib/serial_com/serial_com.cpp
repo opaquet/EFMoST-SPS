@@ -81,7 +81,7 @@ void Serial_Com::SendStateJSON() {
     Serial.print("{\"M\":[");
 
     // Send Measurements (15x2 -> 34 Bytes)
-    for (uint8_t i = 0; i < 15; i++) {
+    for (uint8_t i = 0; i < 16; i++) {
         Serial.print(g_ProcessState[i]);
         Serial.print(',');
     }
@@ -170,7 +170,7 @@ void Serial_Com::parse_command1() {
         SerialToken = strtok(NULL, ",");
     }
     // call handling callback routine
-    if (nvals == 12) { // only if 12 values are recieved, call the callback function
+    if (nvals == 12) { // only if 13 values are recieved, call the callback function
         DataCallback(vals);
         time_since_last_measurement = millis();
     }

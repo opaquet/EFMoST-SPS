@@ -55,7 +55,7 @@ public:
     void read_serial1();
     cb_cmd CmdCallback = nullptr;
     cb_data DataCallback = nullptr; 
-    boolean relay_serial = false;
+    boolean relay_serial = true;
     boolean autosend = false;
     boolean serial_ready = true;
     uint16_t autosend_delay = 1000;

@@ -7,7 +7,7 @@
 
 // general definition
 #define DEVICE   "EFMoST SPS"
-#define VERSION  "1.0.2b"
+#define VERSION  "1.0.4a"
 
 // variable ranges
 #define MinLevel    0       // cm
@@ -37,7 +37,23 @@
 #define SERIAL1_BAUD_RATE 19200
 
 
-enum  {FluidLevel, FilterSpeed, Airation, FeedRate, Temp, ConcentrationFraction, Press1, Press2, Temp2, Temp3, Ox, H2S, pH, Conduct, Distance};
+enum  {     FluidLevel, 
+            FilterSpeed, 
+            Airation, 
+            FeedRate, 
+            Temp, 
+            ConcentrationFraction, 
+            Press1, 
+            Press2, 
+            Temp2, 
+            Temp3, 
+            Ox, 
+            H2S, 
+            pH, 
+            Conduct, 
+            Distance,
+            pOx
+            };
 
 // ********* global Variables *********
 extern uint16_t     g_analog_control_out[3];
@@ -46,7 +62,7 @@ extern boolean      g_auto_state[6];
 extern boolean      g_control[7];
 extern boolean      g_alarm[6];
 extern boolean      g_direct_control;
-extern uint16_t     g_ProcessState[15];
+extern uint16_t     g_ProcessState[16];
 extern uint16_t     g_Setpoints[6];
 
 #endif

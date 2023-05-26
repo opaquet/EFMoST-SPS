@@ -17,6 +17,8 @@ public:
     void analog_out(uint16_t * values);
     uint16_t * analog_in();
     uint16_t buttons_pressed_top, buttons_pressed_bottom;
+    uint16_t buttons_pressed_top_last, buttons_pressed_bottom_last;
+    uint16_t buttons_pressed_temp;
 
 private:
     MCP4921 DAC[3] = {};

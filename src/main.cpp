@@ -13,7 +13,7 @@ boolean         g_auto_state[6]         = {false, false, false, false, false, fa
 boolean         g_alarm[6]              = {false, false, false, false, false, false};
 boolean         g_alarm_ignore[6]       = {false, false, false, false, false, false};
 boolean         g_control[7]            = {false, false, false, false, false, false, false};
-uint16_t        g_ProcessState[15]      = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+uint16_t        g_ProcessState[16]      = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 uint16_t        g_Setpoints[6]          = {0,0,0,0,0,0};
 boolean         g_direct_control        = false;
 
@@ -40,8 +40,20 @@ inline uint8_t flipByte(uint8_t c) {
 
 // ISR for button polling. Executed every 50 ms
 ISR(TIMER5_COMPA_vect) {
-    IO_handler.buttons_pressed_top = uint16_t(PINA) + ((uint16_t(flipByte(PINC & 0xF0)) << 8));
-    IO_handler.buttons_pressed_bottom = (flipByte(PINC) >> 4) + (flipByte(PINL) << 4) + ((PINJ & 0x02) << 11);
+    //read top buttons state
+    IO_handler.buttons_pressed_temp = uint16_t(PINA) + ((uint16_t(flipByte(PINC & 0xF0)) << 8));
+    IO_handler.buttons_pressed_top = IO_handler.buttons_pressed_temp & IO_handler.buttons_pressed_top_last;
+    IO_handler.buttons_pressed_top_last = IO_handler.buttons_pressed_temp;
+
+
+    //read bottom buttons state
+    IO_handler.buttons_pressed_temp = (flipByte(PINC) >> 4) + (flipByte(PINL) << 4) + ((PINJ & 0x02) << 11);
+    IO_handler.buttons_pressed_bottom = IO_handler.buttons_pressed_temp & IO_handler.buttons_pressed_bottom_last;
+    IO_handler.buttons_pressed_bottom_last = IO_handler.buttons_pressed_temp;
+
+
+    //IO_handler.buttons_pressed_top = uint16_t(PINA) + ((uint16_t(flipByte(PINC & 0xF0)) << 8));
+    //IO_handler.buttons_pressed_bottom = (flipByte(PINC) >> 4) + (flipByte(PINL) << 4) + ((PINJ & 0x02) << 11);
 }
 
 // interpret and execute commands that were recieved via serial0
@@ -52,7 +64,6 @@ void serial_cmd_exec(serial_cmd_t cmd) {
             g_Setpoints[cmd.args[0]] = cmd.args[1]; 
             cmdOK = true;     
         } 
-
     } else if (strcmp(cmd.command, "alarm_ignore") == 0) { // ignore alarm
         if ((cmd.nargs == 1) && (cmd.args[0] < 6)) {
             g_alarm_ignore[cmd.args[0]] = true;
@@ -135,7 +146,7 @@ void serial_cmd_exec(serial_cmd_t cmd) {
         }
     } else if (strcmp(cmd.command, "send_freq") == 0) { // change send frequency
         if (cmd.nargs == 1) {
-            if (cmd.args[0] < 5760000/scom.baud0)
+            if (cmd.args[0] < 5760000/scom.baud0)  // make sure that send frequency is not too fast so that all data can still be trasmitted... on very low baud rates reduce send frequency if necessary
                 scom.autosend_delay = 5760000/scom.baud0;
             else
                 scom.autosend_delay = cmd.args[0];
@@ -161,24 +172,27 @@ void serial_cmd_exec(serial_cmd_t cmd) {
 // copy and evaluate new data from measurement MCU recieved via serial1
 // M is 12 long -> temp1, pH, temp2, conductivity, oxygen, temp3, distance, p1, p2, H2S, feedrate, airation_valve_pos
 void serial_data_read(uint16_t * M) {
-    if ((M[0] > 100) & (M[0] < 5000)) g_ProcessState[Temp] = M[0]/10; //valide temperatur zwischen 1 und 50 °C
+    if ((M[0] > 100) & (M[0] < 5000)) g_ProcessState[Temp] = M[0]; //valide temperatur zwischen 1 und 50 °C
     g_ProcessState[pH] = M[1];
-    if ((M[2] > 100) & (M[2] < 5000)) g_ProcessState[Temp2] = M[2]/10;
-    g_ProcessState[Conduct] = M[3];
-    g_ProcessState[Ox]= M[4];
-    if ((M[5] > 100) & (M[5] < 5000)) g_ProcessState[Temp3] = M[5]/10;
+    if ((M[2] > 100) & (M[2] < 5000)) g_ProcessState[Temp2] = M[2];
+    //g_ProcessState[Conduct] = M[3];
+    g_ProcessState[Ox]= M[3];
+    if ((M[5] > 100) & (M[4] < 5000)) g_ProcessState[Temp3] = M[4];
+    g_ProcessState[pOx] = M[5];
     g_ProcessState[Distance] = M[6];
-    if ((M[7] > 800) & (M[7] < 4000)) g_ProcessState[Press1] = M[7]; //valider druck zwischen 0,8 und 4 bar
-    if ((M[8] > 800) & (M[8] < 4000)) g_ProcessState[Press2] = M[8];
-    g_ProcessState[H2S] = M[9];
-    g_ProcessState[FeedRate] = map(M[10], 0, 1023, MinFeed, MaxFeed);
-    g_ProcessState[Airation] = M[11];
+    if ((M[7] < 4000)) g_ProcessState[Press1] = M[7]; //valider druck zwischen 0,8 und 4 bar
+    if ((M[8] < 4000)) g_ProcessState[Press2] = M[8];
+    //g_ProcessState[H2S] = M[9];
+    g_ProcessState[FeedRate] = map(M[9], 0, 1023, MinFeed, MaxFeed);
+    g_ProcessState[Airation] = M[10];
+    g_ProcessState[FilterSpeed] = map(M[11],0,1023,MinRPM,MaxRPM);
 
     // Fluidlevel ist druckdifferenz zwischen boden udn deckel druck. Sollte diese differenz negative sein, setzte level auf 0
     if (g_ProcessState[Press1] > g_ProcessState[Press2])
         g_ProcessState[FluidLevel] = (g_ProcessState[Press1] - g_ProcessState[Press2]) ;
     else
         g_ProcessState[FluidLevel] = 0;
+
 
     // tracke maximalen Fluidlevel für die konzentrierung/filterung am ende, aber nur wenn fluid level control aktiv ist
     if (g_control[0] & (g_ProcessState[FluidLevel] > maxV)) maxV = g_ProcessState[FluidLevel];
@@ -310,17 +324,23 @@ inline void ControlOut() {
         //   SollTemp vom Poti oder PC
         if (g_control[5]) {
             if ((g_ProcessState[Temp]) > g_Setpoints[Temp]) {
-                g_digital_control_out |= _BV(5); // Kühlboden Ventil auf
+                g_digital_control_out |= _BV(5); // Kühlboden Ventil auf         
+            }
+            if ((g_ProcessState[Temp]) > g_Setpoints[Temp]+1) {
                 g_digital_control_out |= _BV(6); // Kühlmantel Ventil auf
             }
+
         }
+
+
 
         // Konzentrierung
         //   Maximalen Füllstand erfassen -> Aufkonzentrierung ist Quotient aus aktuellem und maximalem Füllstand
         //   Abluft (digital) schließen
         //   Druckregler / Druckluft (digital) einschalten um Überdruck zu erzeugen
         //   Auslassventil (digital) auf
-        if (g_control[6] & !g_control[0] & !g_control[3]) { // filtration can only happen if airation and filling are both off.
+        if (g_control[6] & !g_control[0]) {
+        //if (g_control[6] & !g_control[0] & !g_control[3]) { // filtration can only happen if airation and filling are both off.
             if ((g_ProcessState[ConcentrationFraction]) > g_Setpoints[ConcentrationFraction]) {
                 g_digital_control_out |= _BV(0); // Motorventil auf
                 g_digital_control_out |= _BV(2); // Konzentreirung Druckluft auf

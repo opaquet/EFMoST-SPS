@@ -7,17 +7,11 @@
 
 // general definition
 #define DEVICE   "EFMoST SPS"
-#define VERSION  "1.0.5a"
+#define VERSION  "1.0.7a"
 
 // variable ranges
 #define MinLevel    0       // cm
 #define MaxLevel    150     // cm
-#define MinRPM      0       // U/min
-#define MaxRPM      384     // U/min
-#define MinAiration 0       // L/min
-#define MaxAiration 900     // L/min
-#define MinFeed     0       // L/h
-#define MaxFeed     375     // L/h
 #define MinTemp     0       // 0,1 °C -> 0 °C
 #define MaxTemp     500     // 0,1 °C -> 50 °C
 #define MinConc     100     // 0,1 % -> 10 %
@@ -29,7 +23,7 @@
 #define DISPLAY2 0x22
 #define DISPLAY3 0x23
 #define DISPLAY4 0x24
-#define DISPLAY5 0x27
+#define DISPLAY5 0x26
 #define i2c_Clock   400000L // 400 kHz should work? 
 
 // serial connection
@@ -77,7 +71,7 @@ bit 6:
 bit 7:
 bit 8:
 bit 9:
-bit 10:
+bit 10: Value conversion (measurement or setpoint) error -> index out of bounds.
 bit 11:
 bit 12:
 bit 13:

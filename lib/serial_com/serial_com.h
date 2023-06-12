@@ -68,7 +68,7 @@ public:
 private:
     char SendBuffer[64];
     char serial_buf0[64];
-    char serial_buf1[64];
+    char serial_buf1[128];
     uint8_t buf_pos0 = 0;
     uint8_t buf_pos1 = 0;
     boolean SerialCmdValid0 = false;

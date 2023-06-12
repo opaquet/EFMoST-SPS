@@ -40,20 +40,19 @@ inline uint8_t flipByte(uint8_t c) {
 
 // ISR for button polling. Executed every 50 ms
 ISR(TIMER5_COMPA_vect) {
+    // store value temporarily in variable and check during next excution if button is still pressed by 
+    // ANDing the temp state and the actual button state. So a Button press is only detected if a button is pressed for at least 50 ms
+    // (or twice with 50 ms delay, which is highly unlikely)
+
     //read top buttons state
     IO_handler.buttons_pressed_temp = uint16_t(PINA) + ((uint16_t(flipByte(PINC & 0xF0)) << 8));
     IO_handler.buttons_pressed_top = IO_handler.buttons_pressed_temp & IO_handler.buttons_pressed_top_last;
     IO_handler.buttons_pressed_top_last = IO_handler.buttons_pressed_temp;
 
-
     //read bottom buttons state
     IO_handler.buttons_pressed_temp = (flipByte(PINC) >> 4) + (flipByte(PINL) << 4) + ((PINJ & 0x02) << 11);
     IO_handler.buttons_pressed_bottom = IO_handler.buttons_pressed_temp & IO_handler.buttons_pressed_bottom_last;
     IO_handler.buttons_pressed_bottom_last = IO_handler.buttons_pressed_temp;
-
-
-    //IO_handler.buttons_pressed_top = uint16_t(PINA) + ((uint16_t(flipByte(PINC & 0xF0)) << 8));
-    //IO_handler.buttons_pressed_bottom = (flipByte(PINC) >> 4) + (flipByte(PINL) << 4) + ((PINJ & 0x02) << 11);
 }
 
 // interpret and execute commands that were recieved via serial0
@@ -137,8 +136,8 @@ void serial_cmd_exec(serial_cmd_t cmd) {
     } else if (strcmp(cmd.command, "reset") == 0) { // reset mcu
         scom.CmdOK();
         delay(100);
-        asm volatile ("jmp 0");
-        return; //will never be reached...
+        asm volatile ("jmp 0");  //inline assembly: jump to adress 0 -> jump to first interrupt vector (reset/reinitialize on most Atmel MCUs)
+        return; //will (or should) never be reached...
     } else if (strcmp(cmd.command, "relay_serial") == 0) { // enable or disable the relaying of any serial data recieved from serial1 out to serial0
         if (cmd.nargs == 1) {
             scom.relay_serial = cmd.args[0];
@@ -194,8 +193,8 @@ void serial_data_read(uint16_t * M) {
         g_ProcessState[FluidLevel] = 0;
 
 
-    // tracke maximalen Fluidlevel für die konzentrierung/filterung am ende, aber nur wenn fluid level control aktiv ist
-    if (g_control[0] & (g_ProcessState[FluidLevel] > maxV)) maxV = g_ProcessState[FluidLevel];
+    // tracke maximalen Fluidlevel für die Konzentrierung/Filterung am Ende, aber nur wenn fluid level control oder Feed aktiv ist
+    if ((g_control[0] & g_control[4]) & (g_ProcessState[FluidLevel] > maxV)) maxV = g_ProcessState[FluidLevel];
 
     // Concentration fraction berechnen - wieviel volumen habe ich noch verglichen zum maximalvolumen (in 1000)
     if (maxV > 0) {
@@ -285,7 +284,7 @@ inline void ControlOut() {
             if ((g_ProcessState[FluidLevel]) < g_Setpoints[FluidLevel]) {
                 g_digital_control_out |= _BV(4); // Ventil auf
             } else {
-                g_control[0] = false; // Steuerung aus
+                //g_control[0] = false; // Steuerung aus
             }
         }
 
@@ -332,21 +331,19 @@ inline void ControlOut() {
 
         }
 
-
-
         // Konzentrierung
         //   Maximalen Füllstand erfassen -> Aufkonzentrierung ist Quotient aus aktuellem und maximalem Füllstand
         //   Abluft (digital) schließen
         //   Druckregler / Druckluft (digital) einschalten um Überdruck zu erzeugen
         //   Auslassventil (digital) auf
-        if (g_control[6] & !g_control[0]) {
+        if (g_control[6]) {
         //if (g_control[6] & !g_control[0] & !g_control[3]) { // filtration can only happen if airation and filling are both off.
-            if ((g_ProcessState[ConcentrationFraction]) > g_Setpoints[ConcentrationFraction]) {
+        //    if ((g_ProcessState[ConcentrationFraction]) > g_Setpoints[ConcentrationFraction]) {
                 g_digital_control_out |= _BV(0); // Motorventil auf
                 g_digital_control_out |= _BV(2); // Konzentreirung Druckluft auf
-            } else {
-                g_control[6] = false; //Konzentrierung/Filterung stoppen
-            }
+        //    } else {
+        //        g_control[6] = false; //Konzentrierung/Filterung stoppen
+        //    }
         }
     }
 
@@ -385,17 +382,19 @@ inline void state_change() {
                         g_control[0] = true;
                         break;
                     case 1:
-                        g_control[0] = false;
                         if (g_alarm[0]) g_alarm_ignore[0] = true;
+                        else g_control[0] = false;
                         break;
                     case 2:
                         g_control[1] = true;
                         g_control[2] = false;
                         break;
                     case 3:
-                        g_control[1] = false;
-                        g_control[2] = false;
                         if (g_alarm[1]) g_alarm_ignore[1] = true;
+                        else {
+                            g_control[1] = false;
+                            g_control[2] = false;
+                        }
                         break;
                     case 4:
                         g_control[1] = true;
@@ -405,29 +404,29 @@ inline void state_change() {
                         g_control[3] = true;
                         break;
                     case 6:
-                        g_control[3] = false;
                         if (g_alarm[2]) g_alarm_ignore[2] = true;
+                        else g_control[3] = false;
                         break;
                     case 7:
                         g_control[4] = true;
                         break;
                     case 8:
-                        g_control[4] = false;
                         if (g_alarm[3]) g_alarm_ignore[3] = true;
+                        else g_control[4] = false;
                         break;
                     case 9:
                         g_control[5] = true;
                         break;
                     case 10:
-                        g_control[5] = false;
                         if (g_alarm[4]) g_alarm_ignore[4] = true;
+                        else g_control[5] = false;
                         break;
                     case 11:
                         g_control[6] = true;
                         break;
                     case 12:
-                        g_control[6] = false;
                         if (g_alarm[5]) g_alarm_ignore[5] = true;
+                        else g_control[6] = false;
                         break;
                     }
                 }
@@ -459,7 +458,7 @@ inline void resetAlarm() {
     Threshold               = 5;
     g_alarm[Temp]           = ((g_Setpoints[Temp] < (g_ProcessState[Temp] - Threshold))                 | (g_Setpoints[Temp] > (g_ProcessState[Temp] + Threshold)));
 
-    // no alarm for concentrating, instead set alarm if last measurement is older than 30 seconds
+    // no alarm for concentrating, instead set alarm if last measurement is older than 60 seconds
     g_alarm[5]              = ((millis() - scom.time_since_last_measurement) > 60000);
 
     // reset "alarm ignore" if actual alarm condition is no longer true

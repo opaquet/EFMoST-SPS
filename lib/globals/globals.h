@@ -7,7 +7,7 @@
 
 // general definition
 #define DEVICE   "EFMoST SPS"
-#define VERSION  "1.0.4a"
+#define VERSION  "1.0.5a"
 
 // variable ranges
 #define MinLevel    0       // cm
@@ -17,7 +17,7 @@
 #define MinAiration 0       // L/min
 #define MaxAiration 900     // L/min
 #define MinFeed     0       // L/h
-#define MaxFeed     378     // L/h
+#define MaxFeed     375     // L/h
 #define MinTemp     0       // 0,1 °C -> 0 °C
 #define MaxTemp     500     // 0,1 °C -> 50 °C
 #define MinConc     100     // 0,1 % -> 10 %
@@ -29,7 +29,7 @@
 #define DISPLAY2 0x22
 #define DISPLAY3 0x23
 #define DISPLAY4 0x24
-#define DISPLAY5 0x25
+#define DISPLAY5 0x27
 #define i2c_Clock   400000L // 400 kHz should work? 
 
 // serial connection

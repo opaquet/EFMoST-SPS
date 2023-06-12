@@ -158,7 +158,15 @@ uint16_t * IO::analog_in() {
     static uint16_t AV[6];
     for (uint8_t i = 0; i < 6; i++) {
         AV[i] = analogRead(A0 + i); // dummy read for adc to settle
-        AV[i] = analogRead(A0 + i);
+        AV[i] = 0;
+
+        // read and accumulate 32 times
+        for (uint8_t j = 0; j < 32; j++) {
+            AV[i] += analogRead(A0 + i);
+        }
+
+        // and right shift by 5 bits (divide by 32)
+        AV[i] >>= 5;
     }
     return AV;
 }

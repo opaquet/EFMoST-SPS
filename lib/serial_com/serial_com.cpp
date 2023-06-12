@@ -169,8 +169,8 @@ void Serial_Com::parse_command1() {
         vals[nvals++] = atoi(SerialToken);
         SerialToken = strtok(NULL, ",");
     }
-    // call handling callback routine
-    if (nvals == 12) { // only if 13 values are recieved, call the callback function
+    // call the handling callback routine
+    if (nvals == 12) { // only if 12 values are recieved, call the callback function
         DataCallback(vals);
         time_since_last_measurement = millis();
     }
@@ -181,13 +181,13 @@ void Serial_Com::read_serial0() {
     while (Serial.available()) {
         char C = (char)Serial.read(); // Zeichen einlesen
         switch (C) {
-        case '!':
+        case '!': // start char
             if (not SerialCmdValid0) {
                 SerialCmdValid0 = true;
             }
             break;
-        case '\r':
-        case '\n':
+        case '\r': // end char
+        case '\n': // end char
             if (SerialCmdValid0) {
                 serial_buf0[buf_pos0++] = 0;
                 SerialCmdValid0 = false;
@@ -196,12 +196,12 @@ void Serial_Com::read_serial0() {
             }
             break;
         default:
-            if ((buf_pos0 < 50) & SerialCmdValid0) {
+            if ((buf_pos0 < 60) & SerialCmdValid0) {
                 serial_buf0[buf_pos0++] = C;
             }
             break;
         }
-        if (buf_pos0 >= 50) {
+        if (buf_pos0 >= 60) {
             SerialCmdValid0 = false;
             buf_pos0 = 0;
         }
@@ -214,14 +214,14 @@ void Serial_Com::read_serial1() {
     while (Serial1.available()) {
         char C = (char)Serial1.read();
         switch (C) {
-        case '!':
+        case '!': // start char
             if (not SerialCmdValid1) {
                 SerialCmdValid1 = true;
             }
             break;
-        case '?':
-        case '\r':
-        case '\n':
+        case '?': // end char
+        case '\r': // end char
+        case '\n': // end char
             if (SerialCmdValid1) {
                 serial_buf1[buf_pos1++] = 0;
                 SerialCmdValid1 = false;
@@ -230,12 +230,12 @@ void Serial_Com::read_serial1() {
             }
             break;
         default:
-            if ((buf_pos1 < 60) & SerialCmdValid1) {
+            if ((buf_pos1 < 120) & SerialCmdValid1) {
                 serial_buf1[buf_pos1++] = C;
             }
             break;
         }
-        if (buf_pos1 >= 60) {
+        if (buf_pos1 >= 120) {
             SerialCmdValid1 = false;
             buf_pos1 = 0;
         }

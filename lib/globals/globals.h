@@ -64,5 +64,25 @@ extern boolean      g_alarm[6];
 extern boolean      g_direct_control;
 extern uint16_t     g_ProcessState[16];
 extern uint16_t     g_Setpoints[6];
+extern uint16_t     g_errorCode;
+
+/* error codes:
+bit 0: measurement string recieved over serial 1 exceeded maximum buffer lenght and was discarded
+bit 1: number of elements in measurement string not equal to expected lenght (12)
+bit 2: measurement information too old (> 30 s) and therefore invalid 
+bit 3:
+bit 4:
+bit 5:
+bit 6:
+bit 7:
+bit 8:
+bit 9:
+bit 10:
+bit 11:
+bit 12:
+bit 13:
+bit 14:
+bit 15:
+*/
 
 #endif

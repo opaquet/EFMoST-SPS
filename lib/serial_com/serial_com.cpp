@@ -125,7 +125,9 @@ void Serial_Com::SendStateJSON() {
     Serial.print(g_analog_control_out[2]);
     Serial.print("],\"dctrl\":");
     Serial.print(g_direct_control?"1":"0" );
-    Serial.println("}}}");
+    Serial.print("}},\"Error\":");
+    Serial.print(g_errorCode);
+    Serial.println("}");
 }
 
 // reply for unrecognized/illegal command!
@@ -173,6 +175,8 @@ void Serial_Com::parse_command1() {
     if (nvals == 12) { // only if 12 values are recieved, call the callback function
         DataCallback(vals);
         time_since_last_measurement = millis();
+    } else {
+        g_errorCode &= _BV(1);
     }
 }
 
@@ -238,6 +242,7 @@ void Serial_Com::read_serial1() {
         if (buf_pos1 >= 120) {
             SerialCmdValid1 = false;
             buf_pos1 = 0;
+            g_errorCode &= _BV(0);
         }
     }
 }

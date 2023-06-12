@@ -16,6 +16,8 @@ boolean         g_control[7]            = {false, false, false, false, false, fa
 uint16_t        g_ProcessState[16]      = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 uint16_t        g_Setpoints[6]          = {0,0,0,0,0,0};
 boolean         g_direct_control        = false;
+uint16_t        g_errorCode             = 0;  // 16 error bits that can be set as seen fit. Will be sent with each data packet, so that pc knows if certain errors occoured
+
 
 // *** local variables ***
 const uint8_t   m2a_idx[13]             = {0,0,1,1,1,2,2,3,3,4,4,5,5};
@@ -460,6 +462,9 @@ inline void resetAlarm() {
 
     // no alarm for concentrating, instead set alarm if last measurement is older than 60 seconds
     g_alarm[5]              = ((millis() - scom.time_since_last_measurement) > 60000);
+    
+    if (g_alarm[5])
+        g_errorCode &= _BV(2);
 
     // reset "alarm ignore" if actual alarm condition is no longer true
     for (uint8_t i = 0; i < 5; i++) {
@@ -481,6 +486,8 @@ void setup() {
 }
 
 void loop() {
+    g_errorCode = 0; // reset error codes
+
     // state change - react on button inputs if there were any and set or reset any alarms if applicable
     state_change();
     resetAlarm();
@@ -501,7 +508,7 @@ void loop() {
     // output - button LEDs
     Set_LED();
 
-    // send out system state over serial in regular (more or less) time interval as set in serial_com
+    // send out system state and error codes over serial in regular (more or less) time interval as set in serial_com
     if ((scom.autosend) & (millis() - scom.lastsend >= scom.autosend_delay)) {
         scom.SendStateJSON();
     }

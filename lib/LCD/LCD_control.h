@@ -22,7 +22,7 @@ public:
 
 private:
     LiquidCrystal_I2C LCD[6] = { LiquidCrystal_I2C(DISPLAY0, 16, 2), LiquidCrystal_I2C(DISPLAY1, 16, 2), LiquidCrystal_I2C(DISPLAY2, 16, 2), LiquidCrystal_I2C(DISPLAY3, 16, 2), LiquidCrystal_I2C(DISPLAY4, 16, 2), LiquidCrystal_I2C(DISPLAY5, 16, 2) };
-
+    uint16_t convert_value(uint16_t val, uint8_t idx);
 };
 
 #endif

@@ -184,9 +184,9 @@ void serial_data_read(uint16_t * M) {
     if ((M[7] < 4000)) g_ProcessState[Press1] = M[7]; //valider druck zwischen 0,8 und 4 bar
     if ((M[8] < 4000)) g_ProcessState[Press2] = M[8];
     //g_ProcessState[H2S] = M[9];
-    g_ProcessState[FeedRate] = map(M[9], 0, 1023, MinFeed, MaxFeed);
+    g_ProcessState[FeedRate] = M[9];
     g_ProcessState[Airation] = M[10];
-    g_ProcessState[FilterSpeed] = map(M[11],0,1023,MinRPM,MaxRPM);
+    g_ProcessState[FilterSpeed] = M[11];
 
     // Fluidlevel ist druckdifferenz zwischen boden udn deckel druck. Sollte diese differenz negative sein, setzte level auf 0
     if (g_ProcessState[Press1] > g_ProcessState[Press2])
@@ -256,11 +256,11 @@ inline void GetSetpointValues() {
     if (!g_auto_state[0])
         g_Setpoints[0] = map(analog_Val[FluidLevel],            0, 1023, MinLevel, MaxLevel);       // cm oder L
     if (!g_auto_state[1])
-        g_Setpoints[1] = map(analog_Val[FilterSpeed],           0, 1023, MinRPM, MaxRPM);           // RPM
+        g_Setpoints[1] = analog_Val[FilterSpeed];
     if (!g_auto_state[2])
-        g_Setpoints[2] = map(analog_Val[Airation],              0, 1023, MinAiration, MaxAiration); // L/min
+        g_Setpoints[2] = analog_Val[Airation];
     if (!g_auto_state[3])
-        g_Setpoints[3] = map(analog_Val[FeedRate],              0, 1023, MinFeed, MaxFeed);         // L/h
+        g_Setpoints[3] = analog_Val[FeedRate]; 
     if (!g_auto_state[4])
         g_Setpoints[4] = map(analog_Val[Temp],                  0, 1023, MinTemp, MaxTemp);         // °C (zehntel)
     if (!g_auto_state[5])
@@ -295,7 +295,7 @@ inline void ControlOut() {
         //   Sollwert vom Poti oder PC
         //   Rechts oder Linkslauf?
         if (g_control[1]) {
-            g_analog_control_out[0] = map(g_Setpoints[FilterSpeed], MinRPM, MaxRPM, 0, 4095);
+            g_analog_control_out[0] = g_Setpoints[FilterSpeed] << 2; // multiply by 4 (shift left by 2 bits) to get from 10 to 12 bit range
             if (g_control[2]) { // right or left rotation
                 g_digital_control_out |= _BV(8);
             } else {
@@ -308,7 +308,7 @@ inline void ControlOut() {
         //   Sollwert vom Poti oder PC
         //   Vorschaltventil (digital) auf oder zu
         if (g_control[3]) {
-            g_analog_control_out[2] = map(g_Setpoints[Airation], MinAiration, MaxAiration, 0, 4095);
+            g_analog_control_out[2] = g_Setpoints[Airation] << 2; // multiply by 4 (shift left by 2 bits) to get from 10 to 12 bit range
             g_digital_control_out |= _BV(1);  // Vorschaltventil auf
             g_digital_control_out |= _BV(3);  // Freigabe Propventil
         }
@@ -317,7 +317,7 @@ inline void ControlOut() {
         //   Pumprate (analog) stellen abhängig vom Sollwert
         //   Sollwert vom Poti oder PC
         if (g_control[4]) {
-            g_analog_control_out[1] = map(g_Setpoints[FeedRate], MinFeed, MaxFeed, 0, 4095);
+            g_analog_control_out[1] = g_Setpoints[FeedRate] << 2; // multiply by 4 (shift left by 2 bits) to get from 10 to 12 bit range
         }
 
         // Kühlung

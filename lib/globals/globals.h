@@ -7,7 +7,7 @@
 
 // general definition
 #define DEVICE   "EFMoST SPS"
-#define VERSION  "1.0.7a"
+#define VERSION  "1.0.7b"
 
 // variable ranges
 #define MinLevel    0       // cm
@@ -23,7 +23,7 @@
 #define DISPLAY2 0x22
 #define DISPLAY3 0x23
 #define DISPLAY4 0x24
-#define DISPLAY5 0x26
+#define DISPLAY5 0x27
 #define i2c_Clock   400000L // 400 kHz should work? 
 
 // serial connection

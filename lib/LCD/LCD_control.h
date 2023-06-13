@@ -13,7 +13,7 @@ public:
     LCD_control();
     void begin();
     void display();
-    String Units[6] = {" cm  ", " U/min  ", " L/min  ", " L/h  ", " C  ", " %  "};
+    String Units[6] = {" L  ", " U/min  ", " L/min  ", " L/h  ", " C  ", " %  "};
     char SendStr[17];
     uint16_t lastSP[6] = {0,0,0,0,0,0};
     uint16_t lastVal[6] = {0,0,0,0,0,0};

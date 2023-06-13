@@ -7,23 +7,23 @@
 
 // general definition
 #define DEVICE   "EFMoST SPS"
-#define VERSION  "1.0.7b"
+#define VERSION  "1.0.8a"
 
 // variable ranges
 #define MinLevel    0       // cm
-#define MaxLevel    150     // cm
+#define MaxLevel    120     // cm
 #define MinTemp     0       // 0,1 °C -> 0 °C
 #define MaxTemp     500     // 0,1 °C -> 50 °C
 #define MinConc     100     // 0,1 % -> 10 %
 #define MaxConc     1000    // 0,1 % -> 100 %
 
 // i2c adress definitions
-#define DISPLAY0 0x20
+#define DISPLAY0 0x27
 #define DISPLAY1 0x21
 #define DISPLAY2 0x22
 #define DISPLAY3 0x23
 #define DISPLAY4 0x24
-#define DISPLAY5 0x27
+#define DISPLAY5 0x25
 #define i2c_Clock   400000L // 400 kHz should work? 
 
 // serial connection

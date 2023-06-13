@@ -29,6 +29,15 @@ uint16_t LCD_control::convert_value(uint16_t val, uint8_t idx) {
     float x, y;
     x = (val / 10.24);
     switch (idx) {
+        case 0:
+            x *= 10.24;
+            if (x > 0) {
+                y = x * 8.25;
+                y += 110;
+            } else {
+                y = 0;
+            }
+            break;
         case 1: //filter speed
             y = x * 3.84;
             break;
@@ -55,6 +64,10 @@ void LCD_control::display() {
             DisplayValue = convert_value(g_Setpoints[i],i);
             LCD[i].setCursor(6, 0);
             if (i < 4) {
+                if (i==0) {
+                    DisplayValue /=10;
+                    DisplayValue *=10;
+                }
                 LCD[i].print(DisplayValue);
             } else {
                 LCD[i].print(DisplayValue/10);
@@ -67,7 +80,7 @@ void LCD_control::display() {
 
         // print measured value (only if value changed, display is initializing or error occoured for fist time)
         if ((g_ProcessState[i] != lastVal[i]) | init | (g_alarm[5] & !alarmprinted[i])) {
-            DisplayValue = convert_value(g_ProcessState[i],1);
+            DisplayValue = convert_value(g_ProcessState[i],i);
             LCD[i].setCursor(6, 1);
 
             //if alarm 6 is set (last valid measurement older than 30 seconds) display "Fehler" instead of measurement value
@@ -76,6 +89,10 @@ void LCD_control::display() {
                 alarmprinted[i] = true;
             } else {
                 if (i < 4) {
+                    if (i==0) {
+                        DisplayValue /=10;
+                        DisplayValue *=10;
+                    }
                     LCD[i].print(DisplayValue);
                 } else {
                     LCD[i].print(DisplayValue/10);

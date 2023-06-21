@@ -165,14 +165,14 @@ void Serial_Com::parse_command1() {
     }
     char* SerialToken = strtok(serial_buf1, ",");
     uint8_t nvals = 0;
-    uint16_t vals[13]; // one longer than necessary
+    uint16_t vals[14]; // one longer than necessary
     while ((SerialToken != NULL)) {
-        if (nvals == 13) break;
+        if (nvals == 14) break;
         vals[nvals++] = atoi(SerialToken);
         SerialToken = strtok(NULL, ",");
     }
     // call the handling callback routine
-    if (nvals == 12) { // only if 12 values are recieved, call the callback function
+    if (nvals == 13) { // only if 13 values are recieved, call the callback function
         DataCallback(vals);
         time_since_last_measurement = millis();
     } else {

@@ -32,8 +32,8 @@ uint16_t LCD_control::convert_value(uint16_t val, uint8_t idx) {
         case 0:
             x *= 10.24;
             if (x > 0) {
-                y = x * 8.25;
-                y += 110;
+                y = x * 8.04;
+                y += 125.8;
             } else {
                 y = 0;
             }
@@ -42,7 +42,7 @@ uint16_t LCD_control::convert_value(uint16_t val, uint8_t idx) {
             y = x * 3.84;
             break;
         case 2: //airation
-            y = x * 9;
+            y = x * 4.5;
             break;
         case 3: //feed pump -> non linear conversion
             y = x*3 - x*x*0.0076116 - x*x*x*1.8243e-5;
@@ -64,7 +64,7 @@ void LCD_control::display() {
             DisplayValue = convert_value(g_Setpoints[i],i);
             LCD[i].setCursor(6, 0);
             if (i < 4) {
-                if (i==0) {
+                if (i==0) { // Füllstand auf 10 L genau runden bzw flooren
                     DisplayValue /=10;
                     DisplayValue *=10;
                 }
@@ -84,12 +84,12 @@ void LCD_control::display() {
             LCD[i].setCursor(6, 1);
 
             //if alarm 6 is set (last valid measurement older than 30 seconds) display "Fehler" instead of measurement value
-            if (g_alarm[5]){
+            if (g_alarm[5] & !alarmprinted[i]){
                 LCD[i].print(F("Fehler!    "));
                 alarmprinted[i] = true;
             } else {
                 if (i < 4) {
-                    if (i==0) {
+                    if (i==0) { // Füllstand auf 10 L genau runden bzw flooren
                         DisplayValue /=10;
                         DisplayValue *=10;
                     }

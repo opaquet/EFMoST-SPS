@@ -6,6 +6,8 @@
 #include <LiquidCrystal_I2C.h>
 #include <SPI.h>
 
+
+
 // *** global variables ***
 uint16_t        g_analog_control_out[3] = { 0, 0, 0 };
 uint16_t        g_digital_control_out   = 0;
@@ -175,18 +177,19 @@ void serial_cmd_exec(serial_cmd_t cmd) {
 void serial_data_read(uint16_t * M) {
     if ((M[0] > 100) & (M[0] < 5000)) g_ProcessState[Temp] = M[0]; //valide temperatur zwischen 1 und 50 °C
     g_ProcessState[pH] = M[1];
-    if ((M[2] > 100) & (M[2] < 5000)) g_ProcessState[Temp2] = M[2];
-    //g_ProcessState[Conduct] = M[3];
-    g_ProcessState[Ox]= M[3];
-    if ((M[5] > 100) & (M[4] < 5000)) g_ProcessState[Temp3] = M[4];
-    g_ProcessState[pOx] = M[5];
-    g_ProcessState[Distance] = M[6];
-    if ((M[7] < 4000)) g_ProcessState[Press1] = M[7]; //valider druck zwischen 0,8 und 4 bar
-    if ((M[8] < 4000)) g_ProcessState[Press2] = M[8];
+    g_ProcessState[Conduct] = M[2];
+    if ((M[3] > 100) & (M[3] < 5000)) g_ProcessState[Temp2] = M[2];
+    
+    g_ProcessState[Ox]= M[4];
+    if ((M[5] > 100) & (M[5] < 5000)) g_ProcessState[Temp3] = M[5];
+    g_ProcessState[pOx] = M[6];
+    g_ProcessState[Distance] = M[7];
+    if ((M[7] < 4000)) g_ProcessState[Press1] = M[8]; //valider druck zwischen 0,8 und 4 bar
+    if ((M[8] < 4000)) g_ProcessState[Press2] = M[9];
     //g_ProcessState[H2S] = M[9];
-    g_ProcessState[FeedRate] = M[9];
-    g_ProcessState[Airation] = M[10];
-    g_ProcessState[FilterSpeed] = M[11];
+    g_ProcessState[FeedRate] = M[10];
+    g_ProcessState[Airation] = M[11];
+    g_ProcessState[FilterSpeed] = M[12];
 
     // Fluidlevel ist druckdifferenz zwischen boden udn deckel druck. Sollte diese differenz negative sein, setzte level auf 0
     if (g_ProcessState[Press1] > g_ProcessState[Press2])
@@ -384,19 +387,17 @@ inline void state_change() {
                         g_control[0] = true;
                         break;
                     case 1:
-                        if (g_alarm[0]) g_alarm_ignore[0] = true;
-                        else g_control[0] = false;
+                        g_alarm_ignore[0] = true;
+                        g_control[0] = false;
                         break;
                     case 2:
                         g_control[1] = true;
                         g_control[2] = false;
                         break;
                     case 3:
-                        if (g_alarm[1]) g_alarm_ignore[1] = true;
-                        else {
-                            g_control[1] = false;
-                            g_control[2] = false;
-                        }
+                        g_alarm_ignore[1] = true;
+                        g_control[1] = false;
+                        g_control[2] = false;
                         break;
                     case 4:
                         g_control[1] = true;
@@ -406,29 +407,29 @@ inline void state_change() {
                         g_control[3] = true;
                         break;
                     case 6:
-                        if (g_alarm[2]) g_alarm_ignore[2] = true;
-                        else g_control[3] = false;
+                        g_alarm_ignore[2] = true;
+                        g_control[3] = false;
                         break;
                     case 7:
                         g_control[4] = true;
                         break;
                     case 8:
-                        if (g_alarm[3]) g_alarm_ignore[3] = true;
-                        else g_control[4] = false;
+                        g_alarm_ignore[3] = true;
+                        g_control[4] = false;
                         break;
                     case 9:
                         g_control[5] = true;
                         break;
                     case 10:
-                        if (g_alarm[4]) g_alarm_ignore[4] = true;
-                        else g_control[5] = false;
+                        g_alarm_ignore[4] = true;
+                        g_control[5] = false;
                         break;
                     case 11:
                         g_control[6] = true;
                         break;
                     case 12:
-                        if (g_alarm[5]) g_alarm_ignore[5] = true;
-                        else g_control[6] = false;
+                        g_alarm_ignore[5] = true;
+                        g_control[6] = false;
                         break;
                     }
                 }

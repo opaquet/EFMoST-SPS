@@ -23,8 +23,6 @@ void LCD_control::begin() {
     Wire.setClock(i2c_Clock);
 }
 
-
-
 uint16_t LCD_control::convert_value(uint16_t val, uint8_t idx) {
     float x, y;
     x = (val / 10.24);
@@ -111,4 +109,12 @@ void LCD_control::display() {
         lastVal[i] = g_ProcessState[i];
     }
     init = false;
+
+    LCD[0].setCursor(15, 0);
+    if (g_foam) {
+        LCD[0].print("F");
+    } else {
+        LCD[0].print(" ");
+    }
+
 }

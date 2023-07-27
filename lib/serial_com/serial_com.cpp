@@ -2,12 +2,43 @@
 
 Serial_Com::Serial_Com() { }
 
-void Serial_Com::begin(cb_cmd CCB, cb_data DCB) {
+// Schnelle und schutzige Median Berechnug, ausgehend von fester Array Länge (5) für FiFo Puffer
+uint16_t Serial_Com::fMedian(uint16_t array[]) {
+    uint16_t median = 0;
+    uint8_t idx1 = 0;
+    uint8_t idx2 = 0;
+
+    for (uint8_t i = 0; i < FIFO_BUFFER_LENGHT; i++) 
+        if (array[i] >= median) {
+            median = array[i];
+            idx1 = i;
+        }       
+    median = 0;
+    for (uint8_t i = 0; i < FIFO_BUFFER_LENGHT; i++) 
+        if ((array[i] >= median) & (idx1 != i)) {
+            median = array[i];
+            idx2 = i;
+        }       
+    median = 0;
+    for (uint8_t i = 0; i < FIFO_BUFFER_LENGHT; i++) 
+        if ((array[i] >= median) & (idx1 != i) & (idx2 != i)) 
+            median = array[i];      
+    return median; 
+}
+
+void Serial_Com::begin(cb_data DCB) {
     Serial.begin(baud0);
     SendDev();
     Serial1.begin(baud1);
-    CmdCallback = CCB;
     DataCallback = DCB;
+
+    // initialize Fifo Buffer for calculation of running median of all incoming measurement values
+    for (uint8_t i = 0; i < 17; i++) {
+        for (uint8_t j = 0; j < FIFO_BUFFER_LENGHT; j++) {
+            FiFoBuffer[i][j] = 0;
+        }
+        FiFoBufferPos[i] = 0;
+    }
 }
 
 bool Serial_Com::validBaud(uint32_t BaudRate) {
@@ -26,8 +57,10 @@ bool Serial_Com::validBaud(uint32_t BaudRate) {
         (BaudRate == 1000000)||
         (BaudRate == 2000000)) 
         return true;
-    else
+    else {
+        g_errorCode |= _BV(4); // invalid baud rate
         return false;
+    }
 }
 
 void Serial_Com::reinit0(uint32_t Baud) {
@@ -80,8 +113,8 @@ void Serial_Com::SendStateJSON() {
     lastsend = millis();
     Serial.print("{\"M\":[");
 
-    // Send Measurements (15x2 -> 34 Bytes)
-    for (uint8_t i = 0; i < 16; i++) {
+    // Send Measurements (18)
+    for (uint8_t i = 0; i < 17; i++) {
         Serial.print(g_ProcessState[i]);
         Serial.print(',');
     }
@@ -142,42 +175,235 @@ void Serial_Com::CmdOK() {
 
 // parse command string coming from Serial0
 void Serial_Com::parse_command0() {
-    serial_cmd_t cmd;
+
     char* SerialCommand = strtok(serial_buf0, "(");
+    uint16_t name = * (uint32_t *) & SerialCommand[0];
+    uint32_t args[8] = {0,0,0,0,0,0,0,0};
+
     char* SerialArguments = strtok(0, ")");
     char* SerialToken = strtok(SerialArguments, ",");
-    cmd.command = SerialCommand;
-    cmd.nargs = 0;
-    while ((SerialToken != NULL) & (cmd.nargs < 8)) {
-        cmd.args[cmd.nargs++] = atol(SerialToken);
+    uint8_t nargs = 0;
+    while ((SerialToken != NULL) & (nargs < 8)) {
+        args[nargs++] = atol(SerialToken);
         SerialToken = strtok(NULL, ",");
     }
+
     // execute Command
-    CmdCallback(cmd);
+    switch (BYTESWAP16(name)) {
+        case 'SP':
+            if ((nargs == 2) && (args[0] < 6) && (g_auto_state[args[0]])) {
+                g_Setpoints[args[0]] = args[1];   
+            } 
+            CmdOK();
+            break;
+        case 'AI':
+            if ((nargs == 1) && (args[0] < 6)) {
+                g_alarm_ignore[args[0]] = true;
+            } 
+            if (nargs == 0) {
+                for (uint8_t i=0; i<6; i++) {
+                    g_alarm_ignore[i] = true;
+                }
+            } 
+            CmdOK();
+            break;
+        case 'DR':
+            if (nargs == 1) g_direct_control = args[0];
+            if (g_direct_control){
+                for (uint8_t i=0; i<6; i++) {
+                    g_alarm_ignore[i] = true;
+                    g_control[i] = false;
+                }
+            } else {
+                for (uint8_t i=0; i<6; i++) {
+                    g_alarm_ignore[i] = false;
+                }
+            }
+            lastsend = 0;
+            CmdOK();
+            break;
+        case 'DS':
+            if (nargs == 3) {
+                switch (args[0]) {
+                case 0:
+                    if (args[1] > 16) break;
+                    if (args[2]) {
+                        g_digital_control_out |= _BV(args[1]);
+                    } else {
+                        g_digital_control_out &= ~_BV(args[1]);
+                    }
+                    lastsend = 0;
+                    break;
+                case 1:
+                    if (args[1] > 3) break;
+                    g_analog_control_out[args[1]] = args[2];
+                    lastsend = 0;
+                    break;
+                default:
+                    break;
+                }
+            } 
+            CmdOK();
+            break;
+        case 'SM':
+            if ((nargs == 2) && (args[0] < 6)) {
+                g_auto_state[args[0]] = args[1];
+                lastsend = 0;
+            } 
+            CmdOK();
+            break;
+        case 'BM':
+            if ((nargs == 1) && validBaud(args[0])) {
+                reinit1(args[0]);
+            } 
+            break;
+        case 'BS':
+            if ((nargs == 1) && validBaud(args[0])) {
+                reinit0(args[0]);
+            } 
+            break;
+        case 'SA':
+            if ((nargs == 2) && (args[0] < 6) && (g_auto_state[args[0]])) {
+                g_control[args[0]] = args[1];
+                lastsend = 0;
+            } 
+            CmdOK();
+            break;
+        case 'Rs':
+            delay(100);
+            asm volatile ("jmp 0");  //inline assembly: jump to adress 0 -> jump to first interrupt vector (reset/reinitialize on most Atmel MCUs)
+            break;; //will (or should) never be reached...
+        case 'Rl':
+            if (nargs == 1) {
+                relay_serial = args[0];
+            }
+            CmdOK();
+            break;
+        case 'SF':
+            if (nargs == 1) {
+                if (args[0] < 5760000/baud0)  // make sure that send frequency is not too fast so that all data can still be trasmitted... on very low baud rates reduce send frequency if necessary
+                    autosend_delay = 5760000/baud0;
+                else
+                    autosend_delay = args[0];
+            }
+            CmdOK();
+            break;
+        case 'GS':
+            SendStateJSON();
+            break;
+        case 'CN':
+            autosend = true;
+            CmdOK();
+            break;
+        case 'GD':
+            SendDev();
+            break;
+        case 'DC':
+            autosend = false;
+            CmdOK();
+            break;
+        default:
+            g_errorCode |= _BV(4);
+            CmdFAIL();
+            break;
+    }
 }
 
 // parse measurement string coming from Serial1
 void Serial_Com::parse_command1() {
+    // relay anything from measurement arduin to control PC if "relay_serial" is set true
     if (relay_serial) {
         Serial.print(F("{\"Relay\":\""));
         Serial.print(serial_buf1);
         Serial.println(F("\"}"));
     }
-    char* SerialToken = strtok(serial_buf1, ",");
+
+    // split message int blocks separated by commas
     uint8_t nvals = 0;
-    uint16_t vals[14]; // one longer than necessary
+    char* SerialToken = strtok(serial_buf1, ",");
+    uint16_t Name;
+    uint16_t value;
     while ((SerialToken != NULL)) {
-        if (nvals == 14) break;
-        vals[nvals++] = atoi(SerialToken);
-        SerialToken = strtok(NULL, ",");
+        uint8_t IDX = 255;
+        if (nvals == 24) break;
+        nvals++;
+        Name = * (int*) &  SerialToken[0]; // cast first two chars (the name) into a single 16 bit unsigned integer
+        value = atoi(SerialToken+3); // convert everything from the 4th char on (the value) into a 16 bit signed integer
+        // interpret messageblock
+        switch (BYTESWAP16(Name)) {
+            case 'TP':
+                IDX = Temp;
+                break;
+            case 'TA':
+                IDX = Temp2;
+                break;
+            case 'TD':
+                IDX = Temp3;
+                break;
+            case 'PH':
+                IDX = pH;
+                break;
+            case 'EC':
+                IDX = Conduct;
+                break;
+            case 'DO':
+                IDX = Ox;
+                break;
+            case 'SG':
+                IDX = pOx;
+                break;
+            case 'AB':
+                IDX = Distance;
+                break;
+            case 'PU':
+                IDX = FeedRate;
+                break;
+            case 'PV':
+                IDX = Airation;
+                break;
+            case 'RT':
+                IDX = FilterSpeed;
+                break;
+            case 'DB':
+                IDX = Press1;
+                break;
+            case 'DK':
+                IDX = Press2;
+                break;
+            case 'FD':
+                IDX = 255;
+                break;
+            case 'SD':
+                IDX = Foam;
+                break;
+            default:
+                g_errorCode |= _BV(3); // set error code 4: one of the message block could not be interpreted
+        }
+        
+
+        // add value to fifo buffer overwriting the oldest value
+        if (IDX < 17) {
+            g_state_changed |= (g_ProcessState[IDX] != value);
+
+            FiFoBuffer[IDX][FiFoBufferPos[IDX]++] = value;
+
+            // resetting the buffer position back to zero if out of bounds (>FIFO_BUFFER_LENGHT) 
+            if (FiFoBufferPos[IDX] >= FIFO_BUFFER_LENGHT) 
+                FiFoBufferPos[IDX] = 0;
+
+            // take the median value of the selected fifo buffer as the according measurement value
+            g_ProcessState[IDX] = fMedian(FiFoBuffer[IDX]);
+        }
+
+        SerialToken = strtok(NULL, ","); // get next message block
     }
-    // call the handling callback routine
-    if (nvals == 13) { // only if 13 values are recieved, call the callback function
-        DataCallback(vals);
-        time_since_last_measurement = millis();
-    } else {
-        g_errorCode &= _BV(1);
-    }
+
+    // set error code 2: number of message blocks is not 1-23
+    if ((nvals == 0) | (nvals >= 24)) 
+        g_errorCode |= _BV(1);
+
+    DataCallback(); // call the handling callback routine
+    time_since_last_measurement = millis();
 }
 
 // read method for serial0 uart (command interface)
@@ -186,32 +412,29 @@ void Serial_Com::read_serial0() {
         char C = (char)Serial.read(); // Zeichen einlesen
         switch (C) {
         case '!': // start char
-            if (not SerialCmdValid0) {
-                SerialCmdValid0 = true;
-            }
+            SerialCmdValid0 = true;
             break;
         case '\r': // end char
         case '\n': // end char
             if (SerialCmdValid0) {
-                serial_buf0[buf_pos0++] = 0;
+                serial_buf0[buf_pos0] = 0;
                 SerialCmdValid0 = false;
-                parse_command0();
                 buf_pos0 = 0;
+                parse_command0();
             }
             break;
         default:
-            if ((buf_pos0 < 60) & SerialCmdValid0) {
+            if ((buf_pos0 < 30) & SerialCmdValid0) {
                 serial_buf0[buf_pos0++] = C;
             }
             break;
         }
-        if (buf_pos0 >= 60) {
+        if (buf_pos0 >= 30) {
             SerialCmdValid0 = false;
             buf_pos0 = 0;
         }
     }
 }
-
 
 // read method for serial1 uart (measurement interface)
 void Serial_Com::read_serial1() {
@@ -219,18 +442,24 @@ void Serial_Com::read_serial1() {
         char C = (char)Serial1.read();
         switch (C) {
         case '!': // start char
-            if (not SerialCmdValid1) {
-                SerialCmdValid1 = true;
-            }
+            SerialCmdValid1 = true;
             break;
         case '?': // end char
         case '\r': // end char
         case '\n': // end char
             if (SerialCmdValid1) {
-                serial_buf1[buf_pos1++] = 0;
+                serial_buf1[buf_pos1] = 0;
                 SerialCmdValid1 = false;
                 buf_pos1 = 0;
                 parse_command1();
+            }
+            break;
+        case '{': // ignore quotation marks, brackets and other characters that might corrupt JSON and store a space instead
+        case '}':
+        case ':':
+        case '"':  
+            if ((buf_pos1 < 120) & SerialCmdValid1) {
+                serial_buf1[buf_pos1++] = ' ';
             }
             break;
         default:
@@ -242,7 +471,7 @@ void Serial_Com::read_serial1() {
         if (buf_pos1 >= 120) {
             SerialCmdValid1 = false;
             buf_pos1 = 0;
-            g_errorCode &= _BV(0);
+            g_errorCode |= _BV(0);
         }
     }
 }

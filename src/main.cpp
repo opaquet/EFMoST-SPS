@@ -6,8 +6,7 @@
 #include <LiquidCrystal_I2C.h>
 #include <SPI.h>
 
-
-
+#pragma region global variables
 // *** global variables ***
 uint16_t        g_analog_control_out[3] = { 0, 0, 0 };
 uint16_t        g_digital_control_out   = 0;
@@ -15,21 +14,39 @@ boolean         g_auto_state[6]         = {false, false, false, false, false, fa
 boolean         g_alarm[6]              = {false, false, false, false, false, false};
 boolean         g_alarm_ignore[6]       = {false, false, false, false, false, false};
 boolean         g_control[7]            = {false, false, false, false, false, false, false};
-uint16_t        g_ProcessState[16]      = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+boolean         g_foam                  = false;
+boolean         g_state_changed         = true;
+uint16_t        g_foam_trigger_counter  = 0;
+uint16_t        g_foam_trigger_counter_long = 0;
+uint16_t        g_ProcessState[17]      = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 uint16_t        g_Setpoints[6]          = {0,0,0,0,0,0};
 boolean         g_direct_control        = false;
 uint16_t        g_errorCode             = 0;  // 16 error bits that can be set as seen fit. Will be sent with each data packet, so that pc knows if certain errors occoured
 
+// PID Values for PID control of Airation if set to auto
+const float     kPID_Airation[3]        = {1, 0.0001, 0};
+float           ePID_Airation[3]        = {0.0, 0.0, 0.0};
+uint32_t        PID_ltime               = 0;
+float           PID_lvalue              = 0.0;
+boolean         PID_saturated           = false;
 
+#pragma endregion
+
+
+inline void CalcPIDSetpoint();
+
+#pragma region local variables
 // *** local variables ***
 const uint8_t   m2a_idx[13]             = {0,0,1,1,1,2,2,3,3,4,4,5,5};
 const uint8_t   m2l_idx[7]              = {0,2,4,5,7,9,11};
 const uint8_t   alarm_idx[6]            = {1,3,6,8,10,12};
 uint16_t        maxV                    = 0; // maximum fill level ever recoded
 uint16_t        lbtn_t, lbtn_b;   //last button state to avoid double reaction
+uint16_t        foam_cleaning_duration  = 0;
 Serial_Com      scom;
 IO              IO_handler;
 LCD_control     LCDs;
+#pragma endregion
 
 // helper routine to flip the bit order of a byte
 inline uint8_t flipByte(uint8_t c) {
@@ -59,144 +76,13 @@ ISR(TIMER5_COMPA_vect) {
     IO_handler.buttons_pressed_bottom_last = IO_handler.buttons_pressed_temp;
 }
 
-// interpret and execute commands that were recieved via serial0
-void serial_cmd_exec(serial_cmd_t cmd) {
-    boolean cmdOK = false;
-    if (strcmp(cmd.command, "set_point") == 0) {  // set Setpoints (only when in automatic mode)
-        if ((cmd.nargs == 2) && (cmd.args[0] < 6) && (g_auto_state[cmd.args[0]])) {
-            g_Setpoints[cmd.args[0]] = cmd.args[1]; 
-            cmdOK = true;     
-        } 
-    } else if (strcmp(cmd.command, "alarm_ignore") == 0) { // ignore alarm
-        if ((cmd.nargs == 1) && (cmd.args[0] < 6)) {
-            g_alarm_ignore[cmd.args[0]] = true;
-            cmdOK = true; 
-        } 
-        if (cmd.nargs == 0) {
-            for (uint8_t i=0; i<6; i++) {
-                g_alarm_ignore[i] = true;
-            }
-            cmdOK = true; 
-        } 
-    } else if (strcmp(cmd.command, "dctrl") == 0) { // enable or disable direct control mode
-        if (cmd.nargs == 1) g_direct_control = cmd.args[0];
-        if (g_direct_control){
-            for (uint8_t i=0; i<6; i++) {
-                g_alarm_ignore[i] = true;
-                g_control[i] = false;
-            }
-        } else {
-            for (uint8_t i=0; i<6; i++) {
-                g_alarm_ignore[i] = false;
-            }
-        }
-        cmdOK = true; 
-        scom.lastsend = 0;
-    } else if (strcmp(cmd.command, "dctrl_set") == 0) { // directly set outputs/actators
-         if (cmd.nargs == 3) {
-            cmdOK = true; 
-            switch (cmd.args[0]) {
-            case 0:
-                if (cmd.args[1] > 16) break;
-                if (cmd.args[2]) {
-                    g_digital_control_out |= _BV(cmd.args[1]);
-                } else {
-                    g_digital_control_out &= ~_BV(cmd.args[1]);
-                }
-                scom.lastsend = 0;
-                break;
-            case 1:
-                if (cmd.args[1] > 3) break;
-                g_analog_control_out[cmd.args[1]] = cmd.args[2];
-                scom.lastsend = 0;
-                break;
-            default:
-                cmdOK = false; 
-                break;
-            }
-        } 
-    } else if (strcmp(cmd.command, "set_mode") == 0) { // change auto/manual mode
-        if ((cmd.nargs == 2) && (cmd.args[0] < 6)) {
-            g_auto_state[cmd.args[0]] = cmd.args[1];
-            cmdOK = true; 
-            scom.lastsend = 0;
-        } 
-    } else if (strcmp(cmd.command, "mmcu_baud") == 0) { // change auto/manual mode
-        if ((cmd.nargs == 1) && scom.validBaud(cmd.args[0])) {
-            scom.reinit1(cmd.args[0]);
-            cmdOK = true; 
-        } 
-    } else if (strcmp(cmd.command, "sps_baud") == 0) { // change auto/manual mode
-        if ((cmd.nargs == 1) && scom.validBaud(cmd.args[0])) {
-            scom.reinit0(cmd.args[0]);
-            cmdOK = true; 
-        } 
-    } else if (strcmp(cmd.command, "set_active") == 0) { // /(de)activate control outputs (if mode is set to auto)
-        if ((cmd.nargs == 2) && (cmd.args[0] < 6) && (g_auto_state[cmd.args[0]])) {
-            g_control[cmd.args[0]] = cmd.args[1];
-            cmdOK = true; 
-            scom.lastsend = 0;
-        } 
-    } else if (strcmp(cmd.command, "reset") == 0) { // reset mcu
-        scom.CmdOK();
-        delay(100);
-        asm volatile ("jmp 0");  //inline assembly: jump to adress 0 -> jump to first interrupt vector (reset/reinitialize on most Atmel MCUs)
-        return; //will (or should) never be reached...
-    } else if (strcmp(cmd.command, "relay_serial") == 0) { // enable or disable the relaying of any serial data recieved from serial1 out to serial0
-        if (cmd.nargs == 1) {
-            scom.relay_serial = cmd.args[0];
-            cmdOK = true; 
-        }
-    } else if (strcmp(cmd.command, "send_freq") == 0) { // change send frequency
-        if (cmd.nargs == 1) {
-            if (cmd.args[0] < 5760000/scom.baud0)  // make sure that send frequency is not too fast so that all data can still be trasmitted... on very low baud rates reduce send frequency if necessary
-                scom.autosend_delay = 5760000/scom.baud0;
-            else
-                scom.autosend_delay = cmd.args[0];
-            cmdOK = true; 
-        }
-    } else if (strcmp(cmd.command, "state") == 0) { // get Systemstate
-        scom.SendStateJSON();
-        return; // send no other confirmation
-    } else if (strcmp(cmd.command, "connect") == 0) { // send device information and start autosend
-        scom.autosend = true;
-        cmdOK = true; 
-    } else if (strcmp(cmd.command, "dev") == 0) { // send device information and start autosend
-        scom.SendDev();
-        return; // send no other confirmation
-    } else if (strcmp(cmd.command, "disconnect") == 0) { // send device information and start autosend
-        cmdOK = true; 
-        scom.autosend = false;
-    }
-    if (cmdOK) scom.CmdOK();
-    else scom.CmdFAIL();
-}
-
-// copy and evaluate new data from measurement MCU recieved via serial1
-// M is 12 long -> temp1, pH, temp2, conductivity, oxygen, temp3, distance, p1, p2, H2S, feedrate, airation_valve_pos
-void serial_data_read(uint16_t * M) {
-    if ((M[0] > 100) & (M[0] < 5000)) g_ProcessState[Temp] = M[0]; //valide temperatur zwischen 1 und 50 °C
-    g_ProcessState[pH] = M[1];
-    g_ProcessState[Conduct] = M[2];
-    if ((M[3] > 100) & (M[3] < 5000)) g_ProcessState[Temp2] = M[2];
-    
-    g_ProcessState[Ox]= M[4];
-    if ((M[5] > 100) & (M[5] < 5000)) g_ProcessState[Temp3] = M[5];
-    g_ProcessState[pOx] = M[6];
-    g_ProcessState[Distance] = M[7];
-    if ((M[7] < 4000)) g_ProcessState[Press1] = M[8]; //valider druck zwischen 0,8 und 4 bar
-    if ((M[8] < 4000)) g_ProcessState[Press2] = M[9];
-    //g_ProcessState[H2S] = M[9];
-    g_ProcessState[FeedRate] = M[10];
-    g_ProcessState[Airation] = M[11];
-    g_ProcessState[FilterSpeed] = M[12];
-
+// Method to run after new measurement data has been recieved and interpreted
+void process_serial_data() {
     // Fluidlevel ist druckdifferenz zwischen boden udn deckel druck. Sollte diese differenz negative sein, setzte level auf 0
     if (g_ProcessState[Press1] > g_ProcessState[Press2])
         g_ProcessState[FluidLevel] = (g_ProcessState[Press1] - g_ProcessState[Press2]) ;
     else
         g_ProcessState[FluidLevel] = 0;
-
 
     // tracke maximalen Fluidlevel für die Konzentrierung/Filterung am Ende, aber nur wenn fluid level control oder Feed aktiv ist
     if ((g_control[0] & g_control[4]) & (g_ProcessState[FluidLevel] > maxV)) maxV = g_ProcessState[FluidLevel];
@@ -207,6 +93,30 @@ void serial_data_read(uint16_t * M) {
     } else {
         g_ProcessState[ConcentrationFraction] = 1000;
     }
+
+    // reset failsafe foam trigger counter since valid date has been recieved
+    g_foam_trigger_counter_long = 0; 
+    
+    // Foam detection and destruction
+    if (g_ProcessState[Foam] == 1) { 
+        g_foam_trigger_counter++;
+    } else {
+        g_foam_trigger_counter = 0;
+    }
+
+    // Todo!!! --> cleaning_duration wird immer wieder zurück gesetzt, wenn das Schaumsignal weiterhin anliegt
+    // Dadurch läuft die Pumpe ohne Unterbrechung, bis der Schaum weg ist...
+    // So lassen !?
+    // Evtl löst sich der Schaumtrigger so endlos von selbst aus?
+
+    if ((g_foam_trigger_counter == 5)) { // 5 consecutive foam signals needed to trigger cleaning procedure
+        g_foam = true;
+        foam_cleaning_duration = 0;
+    }
+
+
+    // PID output Control where desired, when in auto mode (i.e. Airation)
+    CalcPIDSetpoint();
 }
 
 // Set LED states according to system state and shift values out to shif registers
@@ -254,20 +164,82 @@ inline void Set_LED() {
 inline void GetSetpointValues() {
     // read poti values
     uint16_t * analog_Val = IO_handler.analog_in();
-
+    int16_t v;
     // calculate according setpoints if in maual mode (otherwise dont change setpoints)
-    if (!g_auto_state[0])
-        g_Setpoints[0] = map(analog_Val[FluidLevel],            0, 1023, MinLevel, MaxLevel);       // cm oder L
-    if (!g_auto_state[1])
-        g_Setpoints[1] = analog_Val[FilterSpeed];
-    if (!g_auto_state[2])
-        g_Setpoints[2] = analog_Val[Airation];
-    if (!g_auto_state[3])
-        g_Setpoints[3] = analog_Val[FeedRate]; 
-    if (!g_auto_state[4])
-        g_Setpoints[4] = map(analog_Val[Temp],                  0, 1023, MinTemp, MaxTemp);         // °C (zehntel)
-    if (!g_auto_state[5])
-        g_Setpoints[5] = map(analog_Val[ConcentrationFraction], 0, 1023, MinConc, MaxConc);         // % (zehntel)
+    if (!g_auto_state[0]) {
+        v = map(analog_Val[FluidLevel],            0, 1023, MinLevel, MaxLevel);       // cm oder L
+        g_state_changed |= abs(v - (int16_t)g_Setpoints[0]) > 2;
+        g_Setpoints[0] = v;
+    }
+    if (!g_auto_state[1]) {
+        v = analog_Val[FilterSpeed];
+        g_state_changed |= abs(v - (int16_t)g_Setpoints[1]) > 2;
+        g_Setpoints[1] = v;
+    }
+    if (!g_auto_state[2]) {
+        v = analog_Val[Airation];
+        g_state_changed |= abs(v - (int16_t)g_Setpoints[2]) > 2;
+        g_Setpoints[2] = v;
+    }
+    if (!g_auto_state[3]) {
+        v = analog_Val[FeedRate];
+        g_state_changed |= abs(v - (int16_t)g_Setpoints[3]) > 2;
+        g_Setpoints[3] = v;
+    }
+    if (!g_auto_state[4]) {
+        v = map(analog_Val[Temp],                  0, 1023, MinTemp, MaxTemp);         // °C (zehntel)
+        g_state_changed |= abs(v - (int16_t)g_Setpoints[4]) > 2;
+        g_Setpoints[4] = v;
+    }
+    if (!g_auto_state[5]) {
+        v = map(analog_Val[ConcentrationFraction], 0, 1023, MinConc, MaxConc);         // % (zehntel)
+        g_state_changed |= abs(v - (int16_t)g_Setpoints[5]) > 2;
+        g_Setpoints[5] = v;
+    }
+}
+
+inline void CalcPIDSetpoint() {
+    int16_t v;
+    uint32_t dt = millis() - PID_ltime;
+
+
+    // calculate setpoints only if in auto mode (otherwise dont change setpoints)
+
+    // Airation
+    if (g_auto_state[2]) {
+
+        // PID proportional (Setpoint 5.0 mg/L --> 50)
+        ePID_Airation[0] = float(50 - (int)g_ProcessState[Ox]);
+
+        // PID integral
+        if (!PID_saturated)
+            ePID_Airation[1] += ePID_Airation[0] * float(dt);
+
+        // PID differential
+        ePID_Airation[2] = (PID_lvalue - ePID_Airation[0]) / float(dt);
+        PID_lvalue = ePID_Airation[0];
+
+        // actual PID output calculation
+        v = int16_t(ePID_Airation[0] * kPID_Airation[0] + ePID_Airation[1] * kPID_Airation[1] + ePID_Airation[2] * kPID_Airation[2]);
+        
+        // clamp PID output to 0 - 1023 and check wheter output is saturated or not
+        PID_saturated = false;
+        if (v < 0) { 
+            v = 0;
+            PID_saturated = true;
+            g_errorCode |= _BV(7);
+        }
+        if (v > 1023) {
+            v = 1023;
+            PID_saturated = true;
+            g_errorCode |= _BV(8);
+        }
+
+        g_Setpoints[2] = v;
+        g_state_changed |= abs(v - g_Setpoints[2]) > 2;
+    }
+
+    PID_ltime = millis();
 }
 
 // compute and set the actual control outputs
@@ -316,6 +288,15 @@ inline void ControlOut() {
             g_digital_control_out |= _BV(3);  // Freigabe Propventil
         }
 
+        // Schaumzerstörung (an Belüftung gekoppelt)
+        //    Wenn Schaum erkannt wurde, Schaumzerstörung einschalten für 20 s
+        //if (g_control[3]) {
+            if (g_foam) {
+                g_digital_control_out |= _BV(10);  // Relais K20 (Reserve 1) ein
+
+            }
+        //}
+
         // Dosierpumpe
         //   Pumprate (analog) stellen abhängig vom Sollwert
         //   Sollwert vom Poti oder PC
@@ -330,7 +311,7 @@ inline void ControlOut() {
             if ((g_ProcessState[Temp]) > g_Setpoints[Temp]) {
                 g_digital_control_out |= _BV(5); // Kühlboden Ventil auf         
             }
-            if ((g_ProcessState[Temp]) > g_Setpoints[Temp]+1) {
+            if ((g_ProcessState[Temp]) > g_Setpoints[Temp]+15) {
                 g_digital_control_out |= _BV(6); // Kühlmantel Ventil auf
             }
 
@@ -365,6 +346,7 @@ inline void state_change() {
     // top row
     if (IO_handler.buttons_pressed_top) {
         scom.SendBtn(IO_handler.buttons_pressed_top,IO_handler.buttons_pressed_bottom);
+        g_state_changed = true;
         for (uint8_t i = 0; i < 12; i++) {
             if ((IO_handler.buttons_pressed_top >> i) & 1 ) {  // bit test for pressed button
                 if (i%2) {
@@ -379,6 +361,7 @@ inline void state_change() {
     // bottom row
     if (IO_handler.buttons_pressed_bottom) {
         scom.SendBtn(IO_handler.buttons_pressed_top,IO_handler.buttons_pressed_bottom);
+        g_state_changed = true;
         for (uint8_t i = 0; i < 13; i++) {
             if ((IO_handler.buttons_pressed_bottom >> i) & 1) {  // bit test for pressed button
                 if (!g_auto_state[m2a_idx[i]]) { // if not in manual mode -> ignore button press
@@ -441,6 +424,7 @@ inline void state_change() {
 // sets or resets the alarms based on deviations between set-points and system-states
 inline void resetAlarm() {
     uint16_t Threshold = 0;
+
     // set alarm if Fluidlevel is 10 above setpoint 
     Threshold               = 10;
     g_alarm[FluidLevel]     = (g_Setpoints[FluidLevel] > (g_ProcessState[FluidLevel] + Threshold));
@@ -465,17 +449,40 @@ inline void resetAlarm() {
     g_alarm[5]              = ((millis() - scom.time_since_last_measurement) > 60000);
     
     if (g_alarm[5])
-        g_errorCode &= _BV(2);
+        g_errorCode |= _BV(2);
 
     // reset "alarm ignore" if actual alarm condition is no longer true
-    for (uint8_t i = 0; i < 5; i++) {
+    for (uint8_t i = 0; i < 5; i++)
        if (!g_alarm[i]) g_alarm_ignore[i] = false;
+}
+
+// cleansing routine called in each loop cycle
+// as long as "g_foam" is set, the according output will be HIGH)
+void foam_clean() {
+    // increment failsafe foam trigger counter. Idea: if no valid measurement data is available, perform cleaning in regular intervals (like every 10 minutes)
+    // if failsafe counter is high enough (roughly 12 minutes in this case), trigger cleaning
+    // the counter is reset, whenever valid data is recieved from measurement arduino.
+    g_foam_trigger_counter_long++;
+    if (g_foam_trigger_counter_long == 32768) 
+        foam_cleaning_duration = 0;
+
+    // count cycles while cleaning (much faster than using actual time value) -> 1 cycle ~ 22 ms
+    if (g_foam) 
+        foam_cleaning_duration++; 
+
+    // after 910 cycles (-> roughly 20 Seconds) turn off cleaning and reset counters
+    if (foam_cleaning_duration >= 910) { 
+        g_foam_trigger_counter_long = 0;
+        g_foam_trigger_counter = 0;
+        g_foam = false;
+        foam_cleaning_duration = 0;
     }
 }
 
+// normal Arduino style setup function, called once for initialization
 void setup() {
     // ****** setup serial communication ******
-    scom.begin(serial_cmd_exec, serial_data_read);
+    scom.begin(process_serial_data);
 
     // ****** setup LC displays ******
     Serial.print(F("{\"init\":{\"displays\":["));
@@ -486,14 +493,18 @@ void setup() {
     Serial.println(F("1}}"));
 }
 
+// normal Arduino style loop function, called over and over again
+
 void loop() {
-    g_errorCode = 0; // reset error codes
+    
+    g_state_changed = false;
 
     // state change - react on button inputs if there were any and set or reset any alarms if applicable
     state_change();
     resetAlarm();
+    foam_clean();
 
-    // input - read Sensor states
+    // input - read potentiometer values
     GetSetpointValues();
 
     // update LC displays
@@ -510,8 +521,17 @@ void loop() {
     Set_LED();
 
     // send out system state and error codes over serial in regular (more or less) time interval as set in serial_com
-    if ((scom.autosend) & (millis() - scom.lastsend >= scom.autosend_delay)) {
-        scom.SendStateJSON();
+    if (scom.autosend) {
+        if (g_state_changed) {
+            if (((millis() - scom.lastsend) >= 100)) {
+                scom.SendStateJSON();
+                g_errorCode = 0; // reset error codes
+            }
+        }
+        if (((millis() - scom.lastsend) >= scom.autosend_delay)) {
+            scom.SendStateJSON();
+            g_errorCode = 0; // reset error codes
+        }
     }
-    
+
 }

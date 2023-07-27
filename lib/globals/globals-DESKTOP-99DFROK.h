@@ -7,7 +7,7 @@
 
 // general definition
 #define DEVICE   "EFMoST SPS"
-#define VERSION  "1.0.11"
+#define VERSION  "1.0.9a"
 
 // variable ranges
 #define MinLevel    0       // cm
@@ -21,7 +21,7 @@
 #define DISPLAY0 0x20
 #define DISPLAY1 0x21
 #define DISPLAY2 0x22
-#define DISPLAY3 0x23
+#define DISPLAY3 0x27
 #define DISPLAY4 0x24
 #define DISPLAY5 0x25
 #define i2c_Clock   400000L // 400 kHz should work? 
@@ -75,9 +75,9 @@ extern uint16_t     g_errorCode;
 /* error codes:
 bit 0: measurement string recieved over serial 1 exceeded maximum buffer lenght and was discarded
 bit 1: number of elements in measurement string not equal to expected lenght (1-23)
-bit 2: measurement information too old (> 60 s) and therefore invalid 
+bit 2: measurement information too old (> 30 s) and therefore invalid 
 bit 3: unknown Name/ID in measurement string or unable to interpret
-bit 4: invalid BaudRate selected
+bit 4: unknown serial command or unable to interpret
 bit 5:
 bit 6:
 bit 7: pid saturation (0)

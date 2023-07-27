@@ -1,0 +1,68 @@
+//
+// !!! WARNING !!! AUTO-GENERATED FILE!
+// PLEASE DO NOT MODIFY IT AND USE "platformio.ini":
+// https://docs.platformio.org/page/projectconf/section_env_build.html#build-flags
+//
+{
+    "configurations": [
+        {
+            "name": "PlatformIO",
+            "includePath": [
+                "C:/Users/paquet/OneDrive/Code/PlatformIO/Projects/EFMoST SPS/include",
+                "C:/Users/paquet/OneDrive/Code/PlatformIO/Projects/EFMoST SPS/src",
+                "C:/Users/paquet/OneDrive/Code/PlatformIO/Projects/EFMoST SPS/lib/serial_com",
+                "C:/Users/paquet/OneDrive/Code/PlatformIO/Projects/EFMoST SPS/lib/LCD",
+                "C:/Users/paquet/OneDrive/Code/PlatformIO/Projects/EFMoST SPS/lib/IO",
+                "C:/Users/paquet/OneDrive/Code/PlatformIO/Projects/EFMoST SPS/lib/globals",
+                "C:/Users/paquet/OneDrive/Code/PlatformIO/Projects/EFMoST SPS/.pio/libdeps/megaatmega2560/MCP_DAC",
+                "C:/Users/paquet/.platformio/packages/framework-arduino-avr/libraries/SPI/src",
+                "C:/Users/paquet/OneDrive/Code/PlatformIO/Projects/EFMoST SPS/.pio/libdeps/megaatmega2560/LiquidCrystal_I2C",
+                "C:/Users/paquet/.platformio/packages/framework-arduino-avr/libraries/Wire/src",
+                "C:/Users/paquet/.platformio/packages/framework-arduino-avr/cores/arduino",
+                "C:/Users/paquet/.platformio/packages/framework-arduino-avr/variants/mega",
+                "C:/Users/paquet/.platformio/packages/framework-arduino-avr/libraries/EEPROM/src",
+                "C:/Users/paquet/.platformio/packages/framework-arduino-avr/libraries/HID/src",
+                "C:/Users/paquet/.platformio/packages/framework-arduino-avr/libraries/SoftwareSerial/src",
+                ""
+            ],
+            "browse": {
+                "limitSymbolsToIncludedHeaders": true,
+                "path": [
+                    "C:/Users/paquet/OneDrive/Code/PlatformIO/Projects/EFMoST SPS/include",
+                    "C:/Users/paquet/OneDrive/Code/PlatformIO/Projects/EFMoST SPS/src",
+                    "C:/Users/paquet/OneDrive/Code/PlatformIO/Projects/EFMoST SPS/lib/serial_com",
+                    "C:/Users/paquet/OneDrive/Code/PlatformIO/Projects/EFMoST SPS/lib/LCD",
+                    "C:/Users/paquet/OneDrive/Code/PlatformIO/Projects/EFMoST SPS/lib/IO",
+                    "C:/Users/paquet/OneDrive/Code/PlatformIO/Projects/EFMoST SPS/lib/globals",
+                    "C:/Users/paquet/OneDrive/Code/PlatformIO/Projects/EFMoST SPS/.pio/libdeps/megaatmega2560/MCP_DAC",
+                    "C:/Users/paquet/.platformio/packages/framework-arduino-avr/libraries/SPI/src",
+                    "C:/Users/paquet/OneDrive/Code/PlatformIO/Projects/EFMoST SPS/.pio/libdeps/megaatmega2560/LiquidCrystal_I2C",
+                    "C:/Users/paquet/.platformio/packages/framework-arduino-avr/libraries/Wire/src",
+                    "C:/Users/paquet/.platformio/packages/framework-arduino-avr/cores/arduino",
+                    "C:/Users/paquet/.platformio/packages/framework-arduino-avr/variants/mega",
+                    "C:/Users/paquet/.platformio/packages/framework-arduino-avr/libraries/EEPROM/src",
+                    "C:/Users/paquet/.platformio/packages/framework-arduino-avr/libraries/HID/src",
+                    "C:/Users/paquet/.platformio/packages/framework-arduino-avr/libraries/SoftwareSerial/src",
+                    ""
+                ]
+            },
+            "defines": [
+                "PLATFORMIO=60109",
+                "ARDUINO_AVR_MEGA2560",
+                "F_CPU=16000000L",
+                "ARDUINO_ARCH_AVR",
+                "ARDUINO=10808",
+                "__AVR_ATmega2560__",
+                ""
+            ],
+            "cStandard": "gnu11",
+            "cppStandard": "gnu++11",
+            "compilerPath": "C:/Users/paquet/.platformio/packages/toolchain-atmelavr/bin/avr-gcc.exe",
+            "compilerArgs": [
+                "-mmcu=atmega2560",
+                ""
+            ]
+        }
+    ],
+    "version": 4
+}

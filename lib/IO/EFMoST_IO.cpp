@@ -55,6 +55,7 @@ void IO::LED_out(uint32_t led_state) {
     cli(); 
     // Latch pin (17) LOW
     PORTH &= B11111110;
+    delayMicroseconds(2);
     for (uint8_t i = 0; i < 25; i++) {
         // data pin (15) HIGH or LOW
         if (led_state & cmp) {
@@ -63,8 +64,10 @@ void IO::LED_out(uint32_t led_state) {
             PORTJ &= B11111110;
         }
         cmp >>= 1;
+        delayMicroseconds(1);
         // pulse clock pin (16)
         PORTH |= B00000010;
+        delayMicroseconds(1);
         PORTH &= B11111101;
     }
     PORTH |= B00000001; // Latch pin (17) HIGH
@@ -160,7 +163,7 @@ uint16_t * IO::analog_in() {
     static uint16_t AV[6];
     for (uint8_t i = 0; i < 6; i++) {
         AV[i] = analogRead(A0 + i); // dummy read for adc to settle
-        AV[i] = 0;
+        AV[i] = 0; 
 
         // read and accumulate 16 times
         for (uint8_t j = 0; j < 16; j++) {

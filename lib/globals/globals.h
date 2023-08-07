@@ -7,7 +7,7 @@
 
 // general definition
 #define DEVICE   "EFMoST SPS"
-#define VERSION  "1.0.11"
+#define VERSION  "1.0.11b"
 
 // variable ranges
 #define MinLevel    0       // cm
@@ -78,10 +78,10 @@ bit 1: number of elements in measurement string not equal to expected lenght (1-
 bit 2: measurement information too old (> 60 s) and therefore invalid 
 bit 3: unknown Name/ID in measurement string or unable to interpret
 bit 4: invalid BaudRate selected
-bit 5:
-bit 6:
-bit 7: pid saturation (0)
-bit 8: pid saturation (max)
+bit 5: invalid State transition on Button press
+bit 6: command string recieved over serial 0 exceeded maximum buffer lenght and was discarded
+bit 7: 
+bit 8:
 bit 9:
 bit 10: Value conversion (measurement or setpoint) error -> index out of bounds.
 bit 11:

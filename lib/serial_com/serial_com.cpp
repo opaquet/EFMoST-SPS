@@ -111,7 +111,7 @@ void Serial_Com::SendBtn(uint16_t top_btn, uint16_t bottom_btn){
 // send complete system state and all measurement information in JSON form
 void Serial_Com::SendStateJSON() {
     lastsend = millis();
-    Serial.print("{\"M\":[");
+    Serial.print(F("{\"M\":["));
 
     // Send Measurements (18)
     for (uint8_t i = 0; i < 17; i++) {
@@ -119,25 +119,25 @@ void Serial_Com::SendStateJSON() {
         Serial.print(',');
     }
     Serial.print(millis() - time_since_last_measurement); 
-    Serial.print("],\"Ctrl\":{\"Auto\":[");
+    Serial.print(F("],\"Ctrl\":{\"Auto\":["));
     for (uint8_t i = 0; i < 5; i++) {
         Serial.print(g_auto_state[i]?"1":"0");
         Serial.print(',');
     }
     Serial.print(g_auto_state[5]?"1":"0");
-    Serial.print("],\"Act\":[");
+    Serial.print(F("],\"Act\":["));
     for (uint8_t i = 0; i < 6; i++) {
         Serial.print(g_control[i]?"1":"0");
         Serial.print(',');
     }
     Serial.print(g_control[6]?"1":"0");
-    Serial.print("],\"Alarm\":[");
+    Serial.print(F("],\"Alarm\":["));
     for (uint8_t i = 0; i < 5; i++) {
         Serial.print(g_alarm[i]?"1":"0");
         Serial.print(',');
     }
     Serial.print(g_alarm[5]?"1":"0");
-    Serial.print("],\"SP\":[");
+    Serial.print(F("],\"SP\":["));
 
     // Send actual Setpoints (6x2 -> 12 Bytes)
     for (uint8_t i = 0; i < 5; i++) {
@@ -145,20 +145,20 @@ void Serial_Com::SendStateJSON() {
         Serial.print(',');
     }
     Serial.print(g_Setpoints[5]);
-    Serial.print("],\"Out\":{\"D\":[");
+    Serial.print(F("],\"Out\":{\"D\":["));
     for (uint8_t i = 0; i < 11; i++) {
         Serial.print(((g_digital_control_out >> i) & 1)?"1,":"0," );
     }
     Serial.print(((g_digital_control_out >> 11) & 1)?"1":"0" );
-    Serial.print("],\"A\":[");
+    Serial.print(F("],\"A\":["));
     Serial.print(g_analog_control_out[0]);
     Serial.print(",");
     Serial.print(g_analog_control_out[1]);
     Serial.print(",");
     Serial.print(g_analog_control_out[2]);
-    Serial.print("],\"dctrl\":");
+    Serial.print(F("],\"dctrl\":"));
     Serial.print(g_direct_control?"1":"0" );
-    Serial.print("}},\"Error\":");
+    Serial.print(F("}},\"Error\":"));
     Serial.print(g_errorCode);
     Serial.println("}");
 }
@@ -195,6 +195,7 @@ void Serial_Com::parse_command0() {
                 g_Setpoints[args[0]] = args[1];   
             } 
             CmdOK();
+            lastsend = 0;
             break;
         case 'AI':
             if ((nargs == 1) && (args[0] < 6)) {
@@ -251,6 +252,7 @@ void Serial_Com::parse_command0() {
                 lastsend = 0;
             } 
             CmdOK();
+            lastsend = 0;
             break;
         case 'BM':
             if ((nargs == 1) && validBaud(args[0])) {
@@ -261,13 +263,14 @@ void Serial_Com::parse_command0() {
             if ((nargs == 1) && validBaud(args[0])) {
                 reinit0(args[0]);
             } 
-            break;
+            break; 
         case 'SA':
-            if ((nargs == 2) && (args[0] < 6) && (g_auto_state[args[0]])) {
+            if ((nargs == 2) && (args[0] < 6) ) {
                 g_control[args[0]] = args[1];
                 lastsend = 0;
             } 
             CmdOK();
+            lastsend = 0;
             break;
         case 'Rs':
             delay(100);
@@ -293,6 +296,7 @@ void Serial_Com::parse_command0() {
             break;
         case 'CN':
             autosend = true;
+            lastsend = 0;
             CmdOK();
             break;
         case 'GD':
@@ -432,6 +436,7 @@ void Serial_Com::read_serial0() {
         if (buf_pos0 >= 30) {
             SerialCmdValid0 = false;
             buf_pos0 = 0;
+            g_errorCode |= _BV(7);
         }
     }
 }

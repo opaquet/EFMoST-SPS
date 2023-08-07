@@ -77,11 +77,11 @@ void LCD_control::display() {
 
 
         // print measured value (only if value changed, display is initializing or error occoured for fist time)
-        if ((g_ProcessState[i] != lastVal[i]) | init | (g_alarm[5] & !alarmprinted[i])) {
+        if ( (g_ProcessState[i] != lastVal[i]) | init | (g_alarm[5] & !alarmprinted[i]) | (alarmprinted[i] && !(g_alarm[5])) ) {
             DisplayValue = convert_value(g_ProcessState[i],i);
             LCD[i].setCursor(6, 1);
 
-            //if alarm 6 is set (last valid measurement older than 30 seconds) display "Fehler" instead of measurement value
+            //if alarm 6 is set (last valid measurement older than 60 seconds) display "Fehler" instead of measurement value
             if (g_alarm[5] & !alarmprinted[i]){
                 LCD[i].print(F("Fehler!    "));
                 alarmprinted[i] = true;
@@ -103,7 +103,7 @@ void LCD_control::display() {
         }
     }
 
-    //remember last value to deterime if the value has changed (can be done slightly mor efficient, but this si simpe and it works)
+    //remember last value to deterime if the value has changed (can be done slightly more efficiently, but this is simpe and it works)
     for (uint8_t i = 0; i < 6; i++) {
         lastSP[i] = g_Setpoints[i];
         lastVal[i] = g_ProcessState[i];

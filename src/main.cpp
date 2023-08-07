@@ -22,14 +22,6 @@ uint16_t        g_ProcessState[17]      = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 uint16_t        g_Setpoints[6]          = {0,0,0,0,0,0};
 boolean         g_direct_control        = false;
 uint16_t        g_errorCode             = 0;  // 16 error bits that can be set as seen fit. Will be sent with each data packet, so that pc knows if certain errors occoured
-
-// PID Values for PID control of Airation if set to auto
-const float     kPID_Airation[3]        = {1, 0.0001, 0};
-float           ePID_Airation[3]        = {0.0, 0.0, 0.0};
-uint32_t        PID_ltime               = 0;
-float           PID_lvalue              = 0.0;
-boolean         PID_saturated           = false;
-
 #pragma endregion
 
 
@@ -87,7 +79,7 @@ void process_serial_data() {
     // tracke maximalen Fluidlevel für die Konzentrierung/Filterung am Ende, aber nur wenn fluid level control oder Feed aktiv ist
     if ((g_control[0] & g_control[4]) & (g_ProcessState[FluidLevel] > maxV)) maxV = g_ProcessState[FluidLevel];
 
-    // Concentration fraction berechnen - wieviel volumen habe ich noch verglichen zum maximalvolumen (in 1000)
+    // Concentration fraction berechnen - wieviel volumen habe ich noch, verglichen zum MaximalVolumen (in 1000)
     if (maxV > 0) {
         g_ProcessState[ConcentrationFraction] = (g_ProcessState[FluidLevel] * 1000) / maxV;
     } else {
@@ -113,10 +105,6 @@ void process_serial_data() {
         g_foam = true;
         foam_cleaning_duration = 0;
     }
-
-
-    // PID output Control where desired, when in auto mode (i.e. Airation)
-    CalcPIDSetpoint();
 }
 
 // Set LED states according to system state and shift values out to shif registers
@@ -196,50 +184,6 @@ inline void GetSetpointValues() {
         g_state_changed |= abs(v - (int16_t)g_Setpoints[5]) > 2;
         g_Setpoints[5] = v;
     }
-}
-
-inline void CalcPIDSetpoint() {
-    int16_t v;
-    uint32_t dt = millis() - PID_ltime;
-
-
-    // calculate setpoints only if in auto mode (otherwise dont change setpoints)
-
-    // Airation
-    if (g_auto_state[2]) {
-
-        // PID proportional (Setpoint 5.0 mg/L --> 50)
-        ePID_Airation[0] = float(50 - (int)g_ProcessState[Ox]);
-
-        // PID integral
-        if (!PID_saturated)
-            ePID_Airation[1] += ePID_Airation[0] * float(dt);
-
-        // PID differential
-        ePID_Airation[2] = (PID_lvalue - ePID_Airation[0]) / float(dt);
-        PID_lvalue = ePID_Airation[0];
-
-        // actual PID output calculation
-        v = int16_t(ePID_Airation[0] * kPID_Airation[0] + ePID_Airation[1] * kPID_Airation[1] + ePID_Airation[2] * kPID_Airation[2]);
-        
-        // clamp PID output to 0 - 1023 and check wheter output is saturated or not
-        PID_saturated = false;
-        if (v < 0) { 
-            v = 0;
-            PID_saturated = true;
-            g_errorCode |= _BV(7);
-        }
-        if (v > 1023) {
-            v = 1023;
-            PID_saturated = true;
-            g_errorCode |= _BV(8);
-        }
-
-        g_Setpoints[2] = v;
-        g_state_changed |= abs(v - g_Setpoints[2]) > 2;
-    }
-
-    PID_ltime = millis();
 }
 
 // compute and set the actual control outputs
@@ -414,6 +358,8 @@ inline void state_change() {
                         g_alarm_ignore[5] = true;
                         g_control[6] = false;
                         break;
+                    default:
+                        g_errorCode |= _BV(6);
                     }
                 }
             }

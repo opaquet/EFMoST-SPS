@@ -7,7 +7,7 @@
 
 // general definition
 #define DEVICE   "EFMoST SPS"
-#define VERSION  "1.0.11b"
+#define VERSION  "1.0.14"
 
 // variable ranges
 #define MinLevel    0       // cm
@@ -57,7 +57,7 @@ enum  {     FluidLevel,
             };
 
 // ********* global Variables *********
-extern uint16_t     g_analog_control_out[3];
+extern uint16_t     g_analog_control_out[4];
 extern uint16_t     g_digital_control_out;
 extern boolean      g_auto_state[6];
 extern boolean      g_control[7];

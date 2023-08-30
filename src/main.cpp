@@ -8,7 +8,7 @@
 
 #pragma region global variables
 // *** global variables ***
-uint16_t        g_analog_control_out[3] = { 0, 0, 0 };
+uint16_t        g_analog_control_out[4] = { 0, 0, 0, 0 };
 uint16_t        g_digital_control_out   = 0;
 boolean         g_auto_state[6]         = {false, false, false, false, false, false};
 boolean         g_alarm[6]              = {false, false, false, false, false, false};
@@ -23,9 +23,6 @@ uint16_t        g_Setpoints[6]          = {0,0,0,0,0,0};
 boolean         g_direct_control        = false;
 uint16_t        g_errorCode             = 0;  // 16 error bits that can be set as seen fit. Will be sent with each data packet, so that pc knows if certain errors occoured
 #pragma endregion
-
-
-inline void CalcPIDSetpoint();
 
 #pragma region local variables
 // *** local variables ***
@@ -197,6 +194,7 @@ inline void ControlOut() {
         g_analog_control_out[0] = 0;
         g_analog_control_out[1] = 0;
         g_analog_control_out[2] = 0;
+        g_analog_control_out[3] = 0;
 
         // Befüllung
         //   Ventil (digital) auf in Abhängigkeit vom Füllstand

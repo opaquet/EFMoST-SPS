@@ -11,6 +11,7 @@ void IO::begin() {
     DAC[0].begin(38);
     DAC[1].begin(39);
     DAC[2].begin(40);
+    DAC[3].begin(41);
 
     cli(); // stop all interrupts
 
@@ -32,7 +33,7 @@ void IO::begin() {
     DDRB |= B11110000; // pin 10, 11, 12 & 13
 
     // SPI/DAC Chipselect -> output
-    DDRG |= B00000111; // pin 39, 40 & 41
+    DDRG |= B00000111; // pin 39, 40 und 41
     DDRD |= B01000000; // pin 38
 
     // initialize timer interrupt every 50 ms
@@ -156,6 +157,7 @@ void IO::analog_out(uint16_t * values) {
     DAC[0].analogWrite(values[0]);
     DAC[1].analogWrite(values[1]);
     DAC[2].analogWrite(values[2]);
+    DAC[3].analogWrite(values[3]);
 }
 
 // read all 6 analog potentiometer values into array

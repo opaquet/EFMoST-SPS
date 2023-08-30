@@ -21,7 +21,7 @@ public:
     uint16_t buttons_pressed_temp;
 
 private:
-    MCP4921 DAC[3] = {};
+    MCP4921 DAC[4] = {};
 
 };
 

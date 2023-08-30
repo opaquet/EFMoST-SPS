@@ -156,6 +156,8 @@ void Serial_Com::SendStateJSON() {
     Serial.print(g_analog_control_out[1]);
     Serial.print(",");
     Serial.print(g_analog_control_out[2]);
+    Serial.print(",");
+    Serial.print(g_analog_control_out[3]);
     Serial.print(F("],\"dctrl\":"));
     Serial.print(g_direct_control?"1":"0" );
     Serial.print(F("}},\"Error\":"));
@@ -265,7 +267,7 @@ void Serial_Com::parse_command0() {
             } 
             break; 
         case 'SA':
-            if ((nargs == 2) && (args[0] < 6) ) {
+            if ((nargs == 2) && (args[0] < 7) ) {
                 g_control[args[0]] = args[1];
                 lastsend = 0;
             } 

@@ -63,14 +63,6 @@ bool Serial_Com::validBaud(uint32_t BaudRate) {
     }
 }
 
-void Serial_Com::reinit0(uint32_t Baud) {
-    baud0 = Baud;
-    Serial.begin(Baud);
-    if (autosend_delay < 5760000/Baud)
-        autosend_delay = 5760000/Baud;
-    SendDev();
-}
-
 void Serial_Com::reinit1(uint32_t Baud) {
     baud1 = Baud;
     Serial1.begin(Baud);
@@ -177,26 +169,50 @@ void Serial_Com::CmdOK() {
 
 // parse command string coming from Serial0
 void Serial_Com::parse_command0() {
+    // split into blocks (a valid command string may contain up to 4 individual commands packed together, called blocks here)
+    char* Block[4];
+    uint8_t nBlocks = 0;
+    char* SerialToken = strtok(serial_buf0, ";");
 
-    char* SerialCommand = strtok(serial_buf0, "(");
-    uint16_t name = * (uint32_t *) & SerialCommand[0];
-    uint32_t args[8] = {0,0,0,0,0,0,0,0};
+    while ((SerialToken != NULL) & (nBlocks < 4)) {
+        Block[nBlocks++] = SerialToken;
+        SerialToken = strtok(NULL, ";");
+    }
+    
+    // interpret/parse and execute each individual block or command
+    bool cmdResult = true;
+    for (uint8_t i = 0; i < nBlocks; i++) {
 
-    char* SerialArguments = strtok(0, ")");
-    char* SerialToken = strtok(SerialArguments, ",");
-    uint8_t nargs = 0;
-    while ((SerialToken != NULL) & (nargs < 8)) {
-        args[nargs++] = atol(SerialToken);
-        SerialToken = strtok(NULL, ",");
+        char* SerialCommand = strtok(Block[i], "(");
+        uint16_t name = * (uint32_t *) & SerialCommand[0];
+        uint32_t args[8] = {0,0,0,0,0,0,0,0};
+
+        char* SerialArguments = strtok(0, ")");
+        SerialToken = strtok(SerialArguments, ",");
+        uint8_t nargs = 0;
+        while ((SerialToken != NULL) & (nargs < 8)) {
+            args[nargs++] = atol(SerialToken);
+            SerialToken = strtok(NULL, ",");
+        }
+
+        // execute Command
+
+        cmdResult &= DecodeCommand0(name, args, nargs);
     }
 
-    // execute Command
+    if (cmdResult)
+        CmdOK(); // whena all commands have bee recognized return CmdOK!
+    else
+        CmdFAIL(); //otherwise report all as failed
+}
+
+bool Serial_Com::DecodeCommand0(uint16_t name, uint32_t args[], uint8_t nargs ) {
+    bool result = true;
     switch (BYTESWAP16(name)) {
         case 'SP':
             if ((nargs == 2) && (args[0] < 6) && (g_auto_state[args[0]])) {
                 g_Setpoints[args[0]] = args[1];   
             } 
-            CmdOK();
             lastsend = 0;
             break;
         case 'AI':
@@ -208,7 +224,6 @@ void Serial_Com::parse_command0() {
                     g_alarm_ignore[i] = true;
                 }
             } 
-            CmdOK();
             break;
         case 'DR':
             if (nargs == 1) g_direct_control = args[0];
@@ -223,7 +238,6 @@ void Serial_Com::parse_command0() {
                 }
             }
             lastsend = 0;
-            CmdOK();
             break;
         case 'DS':
             if (nargs == 3) {
@@ -246,14 +260,12 @@ void Serial_Com::parse_command0() {
                     break;
                 }
             } 
-            CmdOK();
             break;
         case 'SM':
             if ((nargs == 2) && (args[0] < 6)) {
                 g_auto_state[args[0]] = args[1];
                 lastsend = 0;
             } 
-            CmdOK();
             lastsend = 0;
             break;
         case 'BM':
@@ -261,20 +273,15 @@ void Serial_Com::parse_command0() {
                 reinit1(args[0]);
             } 
             break;
-        case 'BS':
-            if ((nargs == 1) && validBaud(args[0])) {
-                reinit0(args[0]);
-            } 
-            break; 
         case 'SA':
             if ((nargs == 2) && (args[0] < 7) ) {
                 g_control[args[0]] = args[1];
                 lastsend = 0;
             } 
-            CmdOK();
             lastsend = 0;
             break;
         case 'Rs':
+            CmdOK();
             delay(100);
             asm volatile ("jmp 0");  //inline assembly: jump to adress 0 -> jump to first interrupt vector (reset/reinitialize on most Atmel MCUs)
             break;; //will (or should) never be reached...
@@ -282,7 +289,6 @@ void Serial_Com::parse_command0() {
             if (nargs == 1) {
                 relay_serial = args[0];
             }
-            CmdOK();
             break;
         case 'SF':
             if (nargs == 1) {
@@ -291,28 +297,23 @@ void Serial_Com::parse_command0() {
                 else
                     autosend_delay = args[0];
             }
-            CmdOK();
-            break;
-        case 'GS':
-            SendStateJSON();
             break;
         case 'CN':
             autosend = true;
             lastsend = 0;
-            CmdOK();
             break;
         case 'GD':
             SendDev();
             break;
         case 'DC':
             autosend = false;
-            CmdOK();
             break;
         default:
             g_errorCode |= _BV(4);
-            CmdFAIL();
+            result = false;
             break;
     }
+    return result;
 }
 
 // parse measurement string coming from Serial1

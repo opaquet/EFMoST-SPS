@@ -250,11 +250,14 @@ inline void ControlOut() {
         //   Kühlung (digital) ein oder ausschalten, abhängig von SollTemp und IstTemp
         //   SollTemp vom Poti oder PC
         if (g_control[5]) {
-            if ((g_ProcessState[Temp]) > g_Setpoints[Temp]) {
-                g_digital_control_out |= _BV(5); // Kühlboden Ventil auf         
+        //    if ((g_ProcessState[Temp]) > g_Setpoints[Temp]) {
+        //        g_digital_control_out |= _BV(5); // Kühlboden Ventil auf         
+        //    }
+            if ((g_ProcessState[Temp]) < g_Setpoints[Temp]-5) {
+                g_digital_control_out |= _BV(6); // Kühlboden Ventil auf         
             }
-            if ((g_ProcessState[Temp]) > g_Setpoints[Temp]+15) {
-                g_digital_control_out |= _BV(6); // Kühlmantel Ventil auf
+            if ((g_ProcessState[Temp]) > g_Setpoints[Temp]+5) {
+                g_digital_control_out |= _BV(5); // Kühlmantel Ventil auf
             }
 
         }

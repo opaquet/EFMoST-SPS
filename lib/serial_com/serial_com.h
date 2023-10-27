@@ -41,7 +41,6 @@ public:
     Serial_Com();
     void begin(cb_data DCB);
     bool validBaud(uint32_t BaudRate);
-    void reinit0(uint32_t baud);
     void reinit1(uint32_t baud);
     void CmdOK();
     void CmdFAIL();
@@ -49,6 +48,7 @@ public:
     void SendStateJSON();
     void SendBtn(uint16_t top_btn, uint16_t bottom_btn);
     void parse_command0();
+    bool DecodeCommand0(uint16_t name, uint32_t args[], uint8_t nargs ) ;
     void parse_command1();
     void read_serial0();
     void read_serial1();

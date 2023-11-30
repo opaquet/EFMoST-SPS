@@ -377,15 +377,15 @@ inline void resetAlarm() {
     g_alarm[FluidLevel]     = (g_Setpoints[FluidLevel] > (g_ProcessState[FluidLevel] + Threshold));
 
     // set alarm if rotationspeed is off by more than 10 %    
-    Threshold               = g_Setpoints[FilterSpeed] * .9;
+    Threshold               = min(g_Setpoints[FilterSpeed] * .8, 10);
     g_alarm[FilterSpeed]    = ((g_Setpoints[FilterSpeed] < (g_ProcessState[FilterSpeed] - Threshold))   | (g_Setpoints[FilterSpeed] > (g_ProcessState[FilterSpeed] + Threshold)));
 
     // set alarm if airation is off by more than 10 % 
-    Threshold               = g_Setpoints[Airation] * .9;
+    Threshold               = min(g_Setpoints[Airation] * .8, 10);
     g_alarm[Airation]       = ((g_Setpoints[Airation] < (g_ProcessState[Airation] - Threshold))         | (g_Setpoints[Airation] > (g_ProcessState[Airation] + Threshold )));
 
     // set alarm if feedrate is off by more than 10 % 
-    Threshold               = g_Setpoints[FeedRate] * .9;
+    Threshold               = min(g_Setpoints[FeedRate] * .8, 2);
     g_alarm[FeedRate]       = ((g_Setpoints[FeedRate] < (g_ProcessState[FeedRate] - Threshold))         | (g_Setpoints[FeedRate] > (g_ProcessState[FeedRate] + Threshold )));
 
     // set alarm if Temp is off by more than 5 °C

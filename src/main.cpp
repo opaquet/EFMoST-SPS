@@ -16,12 +16,14 @@ boolean         g_alarm_ignore[6]       = {false, false, false, false, false, fa
 boolean         g_control[7]            = {false, false, false, false, false, false, false};
 boolean         g_foam                  = false;
 boolean         g_state_changed         = true;
+boolean         g_pump_ctrl_pwm         = false;
+uint16_t        g_pump_ctrl_pwm_speed   = 127;
 uint16_t        g_foam_trigger_counter  = 0;
 uint16_t        g_foam_trigger_counter_long = 0;
 uint16_t        g_ProcessState[17]      = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 uint16_t        g_Setpoints[6]          = {0,0,0,0,0,0};
 boolean         g_direct_control        = false;
-uint16_t        g_errorCode             = 0;  // 16 error bits that can be set as seen fit. Will be sent with each data packet, so that pc knows if certain errors occoured
+uint16_t        g_errorCode             = 0;  // 16 error bits that can be set as seen fit. Will be sent with each data packet, so that controller pc knows if certain errors occoured
 #pragma endregion
 
 #pragma region local variables
@@ -104,7 +106,7 @@ void process_serial_data() {
     }
 }
 
-// Set LED states according to system state and shift values out to shif registers
+// Set LED states according to system state and shift values out to shift registers
 inline void Set_LED() {
     uint32_t g_buttons_LEDs = 0;
     // blink all auto leds when in direct control mode
@@ -150,7 +152,7 @@ inline void GetSetpointValues() {
     // read poti values
     uint16_t * analog_Val = IO_handler.analog_in();
     int16_t v;
-    // calculate according setpoints if in maual mode (otherwise dont change setpoints)
+    // calculate according setpoints if in manual mode (otherwise dont change setpoints)
     if (!g_auto_state[0]) {
         v = map(analog_Val[FluidLevel],            0, 1023, MinLevel, MaxLevel);       // cm oder L
         g_state_changed |= abs(v - (int16_t)g_Setpoints[0]) > 2;
@@ -182,6 +184,8 @@ inline void GetSetpointValues() {
         g_Setpoints[5] = v;
     }
 }
+
+
 
 // compute and set the actual control outputs
 inline void ControlOut() {
@@ -223,10 +227,12 @@ inline void ControlOut() {
         // Belüftung
         //   Proportionalventil (analog) stellen abhängig vom Sollwert
         //   Sollwert vom Poti oder PC
-        //   Vorschaltventil (digital) auf oder zu
+        //   Vorschaltventil (digital) auf oder zu (wenn Luftstrom größer als 0, sonst Vprschaltentil immer zu)
         if (g_control[3]) {
             g_analog_control_out[2] = g_Setpoints[Airation] << 2; // multiply by 4 (shift left by 2 bits) to get from 10 to 12 bit range
-            g_digital_control_out |= _BV(1);  // Vorschaltventil auf
+            if (g_Setpoints[Airation] > 0) {
+                g_digital_control_out |= _BV(1);  // Vorschaltventil auf
+            }
             g_digital_control_out |= _BV(3);  // Freigabe Propventil
         }
 
@@ -240,23 +246,32 @@ inline void ControlOut() {
         //}
 
         // Dosierpumpe
-        //   Pumprate (analog) stellen abhängig vom Sollwert
-        //   Sollwert vom Poti oder PC
-        if (g_control[4]) {
-            g_analog_control_out[1] = g_Setpoints[FeedRate] << 2; // multiply by 4 (shift left by 2 bits) to get from 10 to 12 bit range
-        }
+        // Wenn in PWM Modus, schlate Pumpe ein und aus in Intervallen
+        if (g_pump_ctrl_pwm) {
+            // pumpe an
+
+            // pumpe aus
+
+
+        } else
+            //   Pumprate (analog) stellen abhängig vom Sollwert
+            //   Sollwert vom Poti oder PC
+            if (g_control[4]) {
+                g_analog_control_out[1] = g_Setpoints[FeedRate] << 2; // multiply by 4 (shift left by 2 bits) to get from 10 to 12 bit range
+            }
 
         // Kühlung
         //   Kühlung (digital) ein oder ausschalten, abhängig von SollTemp und IstTemp
         //   SollTemp vom Poti oder PC
+        uint8_t temperature_deadband = 5; // Setpoint +/- Deadband ist OK. Deadband 5 = 0.5 °C
         if (g_control[5]) {
         //    if ((g_ProcessState[Temp]) > g_Setpoints[Temp]) {
         //        g_digital_control_out |= _BV(5); // Kühlboden Ventil auf         
         //    }
-            if ((g_ProcessState[Temp]) < g_Setpoints[Temp]-5) {
+            if ((g_ProcessState[Temp]) < g_Setpoints[Temp] - temperature_deadband) {
                 g_digital_control_out |= _BV(6); // Kühlboden Ventil auf         
             }
-            if ((g_ProcessState[Temp]) > g_Setpoints[Temp]+5) {
+            if ((g_ProcessState[Temp]) > g_Setpoints[Temp] + temperature_deadband) {
                 g_digital_control_out |= _BV(5); // Kühlmantel Ventil auf
             }
 

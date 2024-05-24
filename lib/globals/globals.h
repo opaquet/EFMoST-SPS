@@ -7,7 +7,7 @@
 
 // general definition
 #define DEVICE   "EFMoST SPS"
-#define VERSION  "1.0.15"
+#define VERSION  "1.0.16b"
 
 // variable ranges
 #define MinLevel    0       // cm
@@ -20,7 +20,7 @@
 // i2c adress definitions
 #define DISPLAY0 0x20
 #define DISPLAY1 0x21
-#define DISPLAY2 0x22
+#define DISPLAY2 0x27
 #define DISPLAY3 0x23
 #define DISPLAY4 0x24
 #define DISPLAY5 0x25
@@ -66,6 +66,8 @@ extern boolean      g_alarm_ignore[6];
 extern boolean      g_direct_control;
 extern boolean      g_foam;
 extern boolean      g_state_changed;
+extern boolean      g_pump_ctrl_pwm;
+extern uint16_t     g_pump_ctrl_pwm_speed;
 extern uint16_t     g_foam_trigger_counter;
 extern uint16_t     g_foam_trigger_counter_long;
 extern uint16_t     g_ProcessState[17];

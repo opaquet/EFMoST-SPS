@@ -13,7 +13,7 @@ void IO::begin() {
     DAC[2].begin(40);
     DAC[3].begin(41);
 
-    cli(); // stop all interrupts
+    cli(); // stop all interrupts during the setup
 
     //initialize Pinmodes
     // all frontpanel buttons -> input
@@ -36,7 +36,7 @@ void IO::begin() {
     DDRG |= B00000111; // pin 39, 40 und 41
     DDRD |= B01000000; // pin 38
 
-    // initialize timer interrupt every 50 ms
+    // setup timer 5 for an interrupt every 50 ms
     TCCR5A = 0;
     TCCR5B = 0;
     TCNT5 = 0;
@@ -50,25 +50,20 @@ void IO::begin() {
 
 // shift out LED states to shift registers (takes about 54 microseconds)
 void IO::LED_out(uint32_t led_state) {
-    // set compare value
-    uint32_t cmp = 16777216;
     // stop all interrupts
     cli(); 
     // Latch pin (17) LOW
     PORTH &= B11111110;
-    delayMicroseconds(2);
-    for (uint8_t i = 0; i < 25; i++) {
+    delayMicroseconds(1); 
+    for (uint32_t cmp = 16777216; cmp > 0; cmp >>= 1) { //decrement compare value by shifting the single one bit right until its zero
         // data pin (15) HIGH or LOW
         if (led_state & cmp) {
             PORTJ |= B00000001;
         } else {
             PORTJ &= B11111110;
         }
-        cmp >>= 1;
-        delayMicroseconds(1);
         // pulse clock pin (16)
         PORTH |= B00000010;
-        delayMicroseconds(1);
         PORTH &= B11111101;
     }
     PORTH |= B00000001; // Latch pin (17) HIGH

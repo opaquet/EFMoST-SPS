@@ -66,6 +66,7 @@ void LCD_control::display() {
                     DisplayValue /=10;
                     DisplayValue *=10;
                 }
+
                 LCD[i].print(DisplayValue);
             } else {
                 LCD[i].print(DisplayValue/10);
@@ -73,6 +74,12 @@ void LCD_control::display() {
                 LCD[i].print(DisplayValue%10);
             }
             LCD[i].print(Units[i]);
+            if (i==3) { // Feed PWM Modus
+                if (g_pump_ctrl_pwm)
+                    LCD[i].print("PWM");
+                else
+                    LCD[i].print("     ");
+            } 
         }
 
 

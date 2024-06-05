@@ -17,7 +17,11 @@ boolean         g_control[7]            = {false, false, false, false, false, fa
 boolean         g_foam                  = false;
 boolean         g_state_changed         = true;
 boolean         g_pump_ctrl_pwm         = false;
-uint16_t        g_pump_ctrl_pwm_speed   = 127;
+boolean         g_pump_ctrl_pwm_state   = false;
+uint16_t        g_pump_ctrl_pwm_speed   = 128;
+uint32_t        g_pump_ctrl_pwm_interval= 10000;
+uint32_t        g_pump_ctrl_pwm_ontime  = 0;
+uint32_t        g_pump_ctrl_pwm_offtime = 0;
 uint16_t        g_foam_trigger_counter  = 0;
 uint16_t        g_foam_trigger_counter_long = 0;
 uint16_t        g_ProcessState[17]      = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
@@ -246,13 +250,26 @@ inline void ControlOut() {
         //}
 
         // Dosierpumpe
-        // Wenn in PWM Modus, schlate Pumpe ein und aus in Intervallen
+        // PWM Modus, wenn die Pumpe mit weniger 75% (--> 96) von der Pumpgeschwindigkeit im PWM Modus (128) betrieben werden soll.
+        g_pump_ctrl_pwm = (g_Setpoints[FeedRate] < 96) ? true : false;// 75 % von 128 --> 75 % ist der maximale duty cycle
+
+        // Wenn in PWM Modus, schalte Pumpe ein und aus in Intervallen
         if (g_pump_ctrl_pwm) {
-            // pumpe an
-
+            if (g_control[4] && !g_pump_ctrl_pwm_state && millis() > g_pump_ctrl_pwm_ontime + g_pump_ctrl_pwm_interval) {
+                // pumpe an und berechne, wann pumpe ausgeschaltet werden muss
+                g_pump_ctrl_pwm_ontime = millis();
+                g_pump_ctrl_pwm_state = true;
+                g_analog_control_out[1] = g_pump_ctrl_pwm_speed << 2; // 1/8 of max speed
+                uint32_t delta_t = (g_Setpoints[FeedRate] * g_pump_ctrl_pwm_interval) / g_pump_ctrl_pwm_speed;
+                g_pump_ctrl_pwm_offtime = delta_t + g_pump_ctrl_pwm_ontime;
+                Serial.println(delta_t);
+            }
             // pumpe aus
-
-
+            if (g_pump_ctrl_pwm_state && millis() > g_pump_ctrl_pwm_offtime) {
+                g_analog_control_out[1] = 0;
+                g_pump_ctrl_pwm_state = false;
+                Serial.println("off");
+            }
         } else
             //   Pumprate (analog) stellen abhängig vom Sollwert
             //   Sollwert vom Poti oder PC

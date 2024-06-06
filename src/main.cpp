@@ -262,13 +262,11 @@ inline void ControlOut() {
                 g_analog_control_out[1] = g_pump_ctrl_pwm_speed << 2; // 1/8 of max speed
                 uint32_t delta_t = (g_Setpoints[FeedRate] * g_pump_ctrl_pwm_interval) / g_pump_ctrl_pwm_speed;
                 g_pump_ctrl_pwm_offtime = delta_t + g_pump_ctrl_pwm_ontime;
-                Serial.println(delta_t);
             }
             // pumpe aus
             if (g_pump_ctrl_pwm_state && millis() > g_pump_ctrl_pwm_offtime) {
                 g_analog_control_out[1] = 0;
                 g_pump_ctrl_pwm_state = false;
-                Serial.println("off");
             }
         } else
             //   Pumprate (analog) stellen abhängig vom Sollwert

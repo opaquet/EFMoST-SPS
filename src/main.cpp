@@ -115,7 +115,7 @@ inline void Set_LED() {
     uint32_t g_buttons_LEDs = 0;
     // blink all auto leds when in direct control mode
     if (g_direct_control) {
-        if (millis()%900 > 450) {
+        if (millis()%600 > 400) {
             for (uint8_t i = 0; i < 6; i++) {
                 g_buttons_LEDs |= _BV(i*2+1);
             }
@@ -141,7 +141,7 @@ inline void Set_LED() {
     }
 
     // bottom row - off --> alarm (blink every 500 ms)
-    if (millis()%1000 > 500) {
+    if (millis()%1000 > 800) {
         for (uint8_t i = 0; i < 6; i++) {
             if (g_alarm[i] & !g_alarm_ignore[i]) {
                 g_buttons_LEDs |= uint32_t(1)<<(alarm_idx[i]+12);
@@ -289,7 +289,6 @@ inline void ControlOut() {
             if ((g_ProcessState[Temp]) > g_Setpoints[Temp] + temperature_deadband) {
                 g_digital_control_out |= _BV(5); // Kühlmantel Ventil auf
             }
-
         }
 
         // Konzentrierung
@@ -456,6 +455,7 @@ void foam_clean() {
     }
 }
 
+#pragma region Arduino
 // normal Arduino style setup function, called once for initialization
 void setup() {
     // ****** setup serial communication ******
@@ -512,3 +512,4 @@ void loop() {
     }
 
 }
+#pragma endregion

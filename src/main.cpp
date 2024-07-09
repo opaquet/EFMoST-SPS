@@ -200,7 +200,7 @@ inline void ControlOut() {
         // reset every output
         g_digital_control_out = 0;
         g_analog_control_out[0] = 0;
-        g_analog_control_out[1] = 0;
+        if (!g_pump_ctrl_pwm) g_analog_control_out[1] = 0;
         g_analog_control_out[2] = 0;
         g_analog_control_out[3] = 0;
 
@@ -262,11 +262,15 @@ inline void ControlOut() {
                 g_analog_control_out[1] = g_pump_ctrl_pwm_speed << 2; // 1/8 of max speed
                 uint32_t delta_t = (g_Setpoints[FeedRate] * g_pump_ctrl_pwm_interval) / g_pump_ctrl_pwm_speed;
                 g_pump_ctrl_pwm_offtime = delta_t + g_pump_ctrl_pwm_ontime;
+                 Serial.print("An: ");
+                Serial.println(g_analog_control_out[1] );
             }
             // pumpe aus
             if (g_pump_ctrl_pwm_state && millis() > g_pump_ctrl_pwm_offtime) {
                 g_analog_control_out[1] = 0;
                 g_pump_ctrl_pwm_state = false;
+                Serial.print("Aus: ");
+                Serial.println(g_analog_control_out[1]);
             }
         } else
             //   Pumprate (analog) stellen abhängig vom Sollwert
@@ -406,19 +410,19 @@ inline void resetAlarm() {
     g_alarm[FluidLevel]     = (g_Setpoints[FluidLevel] > (g_ProcessState[FluidLevel] + Threshold));
 
     // set alarm if rotationspeed is off by more than 10 %    
-    Threshold               = min(g_Setpoints[FilterSpeed] * .8, 10);
+    Threshold               = min(g_Setpoints[FilterSpeed] * .8, 25);
     g_alarm[FilterSpeed]    = ((g_Setpoints[FilterSpeed] < (g_ProcessState[FilterSpeed] - Threshold))   | (g_Setpoints[FilterSpeed] > (g_ProcessState[FilterSpeed] + Threshold)));
 
     // set alarm if airation is off by more than 10 % 
-    Threshold               = min(g_Setpoints[Airation] * .8, 10);
+    Threshold               = min(g_Setpoints[Airation] * .8, 25);
     g_alarm[Airation]       = ((g_Setpoints[Airation] < (g_ProcessState[Airation] - Threshold))         | (g_Setpoints[Airation] > (g_ProcessState[Airation] + Threshold )));
 
     // set alarm if feedrate is off by more than 10 % 
-    Threshold               = min(g_Setpoints[FeedRate] * .8, 2);
+    Threshold               = min(g_Setpoints[FeedRate] * .8, 5);
     g_alarm[FeedRate]       = ((g_Setpoints[FeedRate] < (g_ProcessState[FeedRate] - Threshold))         | (g_Setpoints[FeedRate] > (g_ProcessState[FeedRate] + Threshold )));
 
     // set alarm if Temp is off by more than 5 °C
-    Threshold               = 5;
+    Threshold               = 10;
     g_alarm[Temp]           = ((g_Setpoints[Temp] < (g_ProcessState[Temp] - Threshold))                 | (g_Setpoints[Temp] > (g_ProcessState[Temp] + Threshold)));
 
     // no alarm for concentrating, instead set alarm if last measurement is older than 60 seconds

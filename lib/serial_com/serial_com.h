@@ -55,7 +55,7 @@ public:
     cb_data DataCallback = nullptr; 
     boolean relay_serial = true;
     boolean autosend = false;
-    boolean serial_ready = true;
+    boolean serial_ready = false;
     uint16_t autosend_delay = 10000;
     uint32_t lastsend = 0;
     uint32_t time_since_last_measurement = 0;

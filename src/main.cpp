@@ -73,14 +73,14 @@ ISR(TIMER5_COMPA_vect) {
 
 // Method to run after new measurement data has been recieved and interpreted
 void process_serial_data() {
-    // Fluidlevel ist druckdifferenz zwischen boden udn deckel druck. Sollte diese differenz negative sein, setzte level auf 0
+    // Fluidlevel ist druckdifferenz zwischen boden und deckel druck. Sollte diese differenz negativ sein, setzte level auf 0
     if (g_ProcessState[Press1] > g_ProcessState[Press2])
         g_ProcessState[FluidLevel] = (g_ProcessState[Press1] - g_ProcessState[Press2]) ;
     else
         g_ProcessState[FluidLevel] = 0;
 
     // tracke maximalen Fluidlevel für die Konzentrierung/Filterung am Ende, aber nur wenn fluid level control oder Feed aktiv ist
-    if ((g_control[0] & g_control[4]) & (g_ProcessState[FluidLevel] > maxV)) maxV = g_ProcessState[FluidLevel];
+    if ((g_control[0] && g_control[4]) && (g_ProcessState[FluidLevel] > maxV)) maxV = g_ProcessState[FluidLevel];
 
     // Concentration fraction berechnen - wieviel volumen habe ich noch, verglichen zum MaximalVolumen (in 1000)
     if (maxV > 0) {
@@ -139,8 +139,7 @@ inline void Set_LED() {
             }
         }
     }
-
-    // bottom row - off --> alarm (blink every 500 ms)
+    // bottom row - off --> alarm (blink every 1 s for 200 ms)
     if (millis()%1000 > 800) {
         for (uint8_t i = 0; i < 6; i++) {
             if (g_alarm[i] & !g_alarm_ignore[i]) {
@@ -157,35 +156,35 @@ inline void GetSetpointValues() {
     uint16_t * analog_Val = IO_handler.analog_in();
     int16_t v;
     // calculate according setpoints if in manual mode (otherwise dont change setpoints)
-    if (!g_auto_state[0]) {
+    if (!g_auto_state[FluidLevel]) {
         v = map(analog_Val[FluidLevel],            0, 1023, MinLevel, MaxLevel);       // cm oder L
-        g_state_changed |= abs(v - (int16_t)g_Setpoints[0]) > 2;
-        g_Setpoints[0] = v;
+        g_state_changed |= abs(v - (int16_t)g_Setpoints[FluidLevel]) > 2;
+        g_Setpoints[FluidLevel] = v;
     }
-    if (!g_auto_state[1]) {
+    if (!g_auto_state[FilterSpeed]) {
         v = analog_Val[FilterSpeed];
-        g_state_changed |= abs(v - (int16_t)g_Setpoints[1]) > 2;
-        g_Setpoints[1] = v;
+        g_state_changed |= abs(v - (int16_t)g_Setpoints[FilterSpeed]) > 2;
+        g_Setpoints[FilterSpeed] = v;
     }
-    if (!g_auto_state[2]) {
+    if (!g_auto_state[Airation]) {
         v = analog_Val[Airation];
-        g_state_changed |= abs(v - (int16_t)g_Setpoints[2]) > 2;
-        g_Setpoints[2] = v;
+        g_state_changed |= abs(v - (int16_t)g_Setpoints[Airation]) > 2;
+        g_Setpoints[Airation] = v;
     }
-    if (!g_auto_state[3]) {
+    if (!g_auto_state[FeedRate]) {
         v = analog_Val[FeedRate];
-        g_state_changed |= abs(v - (int16_t)g_Setpoints[3]) > 2;
-        g_Setpoints[3] = v;
+        g_state_changed |= abs(v - (int16_t)g_Setpoints[FeedRate]) > 2;
+        g_Setpoints[FeedRate] = v;
     }
-    if (!g_auto_state[4]) {
+    if (!g_auto_state[Temp]) {
         v = map(analog_Val[Temp],                  0, 1023, MinTemp, MaxTemp);         // °C (zehntel)
-        g_state_changed |= abs(v - (int16_t)g_Setpoints[4]) > 2;
-        g_Setpoints[4] = v;
+        g_state_changed |= abs(v - (int16_t)g_Setpoints[Temp]) > 2;
+        g_Setpoints[Temp] = v;
     }
-    if (!g_auto_state[5]) {
+    if (!g_auto_state[ConcentrationFraction]) {
         v = map(analog_Val[ConcentrationFraction], 0, 1023, MinConc, MaxConc);         // % (zehntel)
-        g_state_changed |= abs(v - (int16_t)g_Setpoints[5]) > 2;
-        g_Setpoints[5] = v;
+        g_state_changed |= abs(v - (int16_t)g_Setpoints[ConcentrationFraction]) > 2;
+        g_Setpoints[ConcentrationFraction] = v;
     }
 }
 
@@ -245,7 +244,6 @@ inline void ControlOut() {
         //if (g_control[3]) {
             if (g_foam) {
                 g_digital_control_out |= _BV(10);  // Relais K20 (Reserve 1) ein
-
             }
         //}
 
@@ -284,9 +282,6 @@ inline void ControlOut() {
         //   SollTemp vom Poti oder PC
         uint8_t temperature_deadband = 5; // Setpoint +/- Deadband ist OK. Deadband 5 = 0.5 °C
         if (g_control[5]) {
-        //    if ((g_ProcessState[Temp]) > g_Setpoints[Temp]) {
-        //        g_digital_control_out |= _BV(5); // Kühlboden Ventil auf         
-        //    }
             if ((g_ProcessState[Temp]) < g_Setpoints[Temp] - temperature_deadband) {
                 g_digital_control_out |= _BV(6); // Kühlboden Ventil auf         
             }
@@ -318,6 +313,7 @@ inline void ControlOut() {
 
 // state change logic -> when any button has been pressed, change accordingly
 inline void state_change() {
+    // if the button is still pressed or the buuton "state" did not change, exit right away
     if ((IO_handler.buttons_pressed_top == lbtn_t) & (IO_handler.buttons_pressed_bottom == lbtn_b)) return;
     lbtn_t = IO_handler.buttons_pressed_top;
     lbtn_b = IO_handler.buttons_pressed_bottom;
@@ -345,58 +341,58 @@ inline void state_change() {
                 if (!g_auto_state[m2a_idx[i]]) { // if not in manual mode -> ignore button press
                     switch (i) {
                     case 0:
-                        g_alarm_ignore[0] = true;
+                        g_alarm_ignore[FluidLevel] = true;
                         g_control[0] = true;
                         break;
                     case 1:
-                        g_alarm_ignore[0] = true;
+                        g_alarm_ignore[FluidLevel] = true;
                         g_control[0] = false;
                         break;
                     case 2:
-                        g_alarm_ignore[1] = true;
+                        g_alarm_ignore[FilterSpeed] = true;
                         g_control[1] = true;
                         g_control[2] = false;
                         break;
                     case 3:
-                        g_alarm_ignore[1] = true;
+                        g_alarm_ignore[FilterSpeed] = true;
                         g_control[1] = false;
                         g_control[2] = false;
                         break;
                     case 4:
-                        g_alarm_ignore[1] = true;
+                        g_alarm_ignore[FilterSpeed] = true;
                         g_control[1] = true;
                         g_control[2] = true;
                         break;
                     case 5:
-                        g_alarm_ignore[2] = true;
+                        g_alarm_ignore[Airation] = true;
                         g_control[3] = true;
                         break;
                     case 6:
-                        g_alarm_ignore[2] = true;
+                        g_alarm_ignore[Airation] = true;
                         g_control[3] = false;
                         break;
                     case 7:
-                        g_alarm_ignore[3] = true;
+                        g_alarm_ignore[FeedRate] = true;
                         g_control[4] = true;
                         break;
                     case 8:
-                        g_alarm_ignore[3] = true;
+                        g_alarm_ignore[FeedRate] = true;
                         g_control[4] = false;
                         break;
                     case 9:
-                        g_alarm_ignore[4] = true;
+                        g_alarm_ignore[Temp] = true;
                         g_control[5] = true;
                         break;
                     case 10:
-                        g_alarm_ignore[4] = true;
+                        g_alarm_ignore[Temp] = true;
                         g_control[5] = false;
                         break;
                     case 11:
-                        g_alarm_ignore[5] = true;
+                        g_alarm_ignore[ConcentrationFraction] = true;
                         g_control[6] = true;
                         break;
                     case 12:
-                        g_alarm_ignore[5] = true;
+                        g_alarm_ignore[ConcentrationFraction] = true;
                         g_control[6] = false;
                         break;
                     default:
@@ -418,19 +414,19 @@ inline void resetAlarm() {
 
     // set alarm if rotationspeed is off by more than 10 %    
     Threshold               = min(g_Setpoints[FilterSpeed] * .8, 25);
-    g_alarm[FilterSpeed]    = ((g_Setpoints[FilterSpeed] < (g_ProcessState[FilterSpeed] - Threshold))   | (g_Setpoints[FilterSpeed] > (g_ProcessState[FilterSpeed] + Threshold)));
+    g_alarm[FilterSpeed]    = ((g_Setpoints[FilterSpeed] < (g_ProcessState[FilterSpeed] - Threshold))   || (g_Setpoints[FilterSpeed] > (g_ProcessState[FilterSpeed] + Threshold)));
 
     // set alarm if airation is off by more than 10 % 
     Threshold               = min(g_Setpoints[Airation] * .8, 25);
-    g_alarm[Airation]       = ((g_Setpoints[Airation] < (g_ProcessState[Airation] - Threshold))         | (g_Setpoints[Airation] > (g_ProcessState[Airation] + Threshold )));
+    g_alarm[Airation]       = ((g_Setpoints[Airation] < (g_ProcessState[Airation] - Threshold))         || (g_Setpoints[Airation] > (g_ProcessState[Airation] + Threshold )));
 
     // set alarm if feedrate is off by more than 10 % 
     Threshold               = min(g_Setpoints[FeedRate] * .8, 5);
-    g_alarm[FeedRate]       = ((g_Setpoints[FeedRate] < (g_ProcessState[FeedRate] - Threshold))         | (g_Setpoints[FeedRate] > (g_ProcessState[FeedRate] + Threshold )));
+    g_alarm[FeedRate]       = ((g_Setpoints[FeedRate] < (g_ProcessState[FeedRate] - Threshold))         || (g_Setpoints[FeedRate] > (g_ProcessState[FeedRate] + Threshold )));
 
-    // set alarm if Temp is off by more than 5 °C
+    // set alarm if Temp is off by more than 1 °C
     Threshold               = 10;
-    g_alarm[Temp]           = ((g_Setpoints[Temp] < (g_ProcessState[Temp] - Threshold))                 | (g_Setpoints[Temp] > (g_ProcessState[Temp] + Threshold)));
+    g_alarm[Temp]           = ((g_Setpoints[Temp] < (g_ProcessState[Temp] - Threshold))                 || (g_Setpoints[Temp] > (g_ProcessState[Temp] + Threshold)));
 
     // no alarm for concentrating, instead set alarm if last measurement is older than 60 seconds
     g_alarm[5]              = ((millis() - scom.time_since_last_measurement) > 60000);

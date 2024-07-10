@@ -24,31 +24,29 @@ void LCD_control::begin() {
 }
 
 uint16_t LCD_control::convert_value(uint16_t val, uint8_t idx) {
-    float x, y;
-    x = (val / 10.24);
+    float x, x2, y;
     switch (idx) {
         case 0:
-            x *= 10.24;
-            if (x > 0) {
-                y = x * 8.04;
-                y += 125.8;
+            if (val > 0) {
+                y = val * 8.04 + 125.8;
             } else {
                 y = 0;
             }
             break;
         case 1: //filter speed
-            y = x * 3.84;
+            y = val * 0.375; // same as (val / 10.24) * 3.84
             break;
         case 2: //airation
-            y = x * 4.5;
+            y = val * 0.439453125; // same as (val / 10.24) * 4.5
             break;
         case 3: //feed pump -> non linear conversion
-            y = x*3 - x*x*0.0076116 - x*x*x*1.8243e-5;
+            x = (val / 10.24);
+            x2 = x*x;
+            y = x*3 - x2*0.0076116 - x2*x*1.8243e-5;
             break;
         default:
-            y = x * 10.24;
+            y = val;
             break;
-        
     }
     return uint16_t(y);
 }
@@ -84,7 +82,7 @@ void LCD_control::display() {
 
 
         // print measured value (only if value changed, display is initializing or error occoured for fist time)
-        if ( (g_ProcessState[i] != lastVal[i]) | init | (g_alarm[5] & !alarmprinted[i]) | (alarmprinted[i] && !(g_alarm[5])) ) {
+        if ( (g_ProcessState[i] != lastVal[i]) || init || (g_alarm[5] && !alarmprinted[i]) || (alarmprinted[i] && !(g_alarm[5])) ) {
             DisplayValue = convert_value(g_ProcessState[i],i);
             LCD[i].setCursor(6, 1);
 

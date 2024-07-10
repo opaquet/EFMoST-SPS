@@ -70,7 +70,7 @@ void IO::LED_out(uint32_t led_state) {
     sei(); // enable all interrupts
 }
 
-// set digtial control out using pins 2 - 13
+// set digital control out using pins 2 - 13
 // using port/register manipulation and loops were unrolled to speed execution up
 void IO::digital_out(uint16_t values) {
     // set pin 2

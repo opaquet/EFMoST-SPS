@@ -15,13 +15,13 @@ uint16_t Serial_Com::fMedian(uint16_t array[]) {
         }       
     median = 0;
     for (uint8_t i = 0; i < FIFO_BUFFER_LENGHT; i++) 
-        if ((array[i] >= median) & (idx1 != i)) {
+        if ((array[i] >= median) && (idx1 != i)) {
             median = array[i];
             idx2 = i;
         }       
     median = 0;
     for (uint8_t i = 0; i < FIFO_BUFFER_LENGHT; i++) 
-        if ((array[i] >= median) & (idx1 != i) & (idx2 != i)) 
+        if ((array[i] >= median) && (idx1 != i) && (idx2 != i)) 
             median = array[i];      
     return median; 
 }
@@ -182,11 +182,9 @@ void Serial_Com::parse_command0() {
     // interpret/parse and execute each individual block or command
     bool cmdResult = true;
     for (uint8_t i = 0; i < nBlocks; i++) {
-
         char* SerialCommand = strtok(Block[i], "(");
         uint16_t name = * (uint32_t *) & SerialCommand[0];
         uint32_t args[8] = {0,0,0,0,0,0,0,0};
-
         char* SerialArguments = strtok(0, ")");
         SerialToken = strtok(SerialArguments, ",");
         uint8_t nargs = 0;
@@ -194,12 +192,9 @@ void Serial_Com::parse_command0() {
             args[nargs++] = atol(SerialToken);
             SerialToken = strtok(NULL, ",");
         }
-
         // execute Command
-
         cmdResult &= DecodeCommand0(name, args, nargs);
     }
-
     if (cmdResult)
         CmdOK(); // whena all commands have bee recognized return CmdOK!
     else
@@ -324,7 +319,6 @@ void Serial_Com::parse_command1() {
         Serial.print(serial_buf1);
         Serial.println(F("\"}"));
     }
-
     // split message int blocks separated by commas
     uint8_t nvals = 0;
     char* SerialToken = strtok(serial_buf1, ",");
@@ -386,22 +380,17 @@ void Serial_Com::parse_command1() {
             default:
                 g_errorCode |= _BV(3); // set error code 4: one of the message block could not be interpreted
         }
-        
 
         // add value to fifo buffer overwriting the oldest value
         if (IDX < 17) {
             g_state_changed |= (g_ProcessState[IDX] != value);
-
             FiFoBuffer[IDX][FiFoBufferPos[IDX]++] = value;
-
             // resetting the buffer position back to zero if out of bounds (>FIFO_BUFFER_LENGHT) 
             if (FiFoBufferPos[IDX] >= FIFO_BUFFER_LENGHT) 
                 FiFoBufferPos[IDX] = 0;
-
             // take the median value of the selected fifo buffer as the according measurement value
             g_ProcessState[IDX] = fMedian(FiFoBuffer[IDX]);
         }
-
         SerialToken = strtok(NULL, ","); // get next message block
     }
 

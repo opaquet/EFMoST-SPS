@@ -345,6 +345,7 @@ inline void state_change() {
                 if (!g_auto_state[m2a_idx[i]]) { // if not in manual mode -> ignore button press
                     switch (i) {
                     case 0:
+                        g_alarm_ignore[0] = true;
                         g_control[0] = true;
                         break;
                     case 1:
@@ -352,6 +353,7 @@ inline void state_change() {
                         g_control[0] = false;
                         break;
                     case 2:
+                        g_alarm_ignore[1] = true;
                         g_control[1] = true;
                         g_control[2] = false;
                         break;
@@ -361,10 +363,12 @@ inline void state_change() {
                         g_control[2] = false;
                         break;
                     case 4:
+                        g_alarm_ignore[1] = true;
                         g_control[1] = true;
                         g_control[2] = true;
                         break;
                     case 5:
+                        g_alarm_ignore[2] = true;
                         g_control[3] = true;
                         break;
                     case 6:
@@ -372,6 +376,7 @@ inline void state_change() {
                         g_control[3] = false;
                         break;
                     case 7:
+                        g_alarm_ignore[3] = true;
                         g_control[4] = true;
                         break;
                     case 8:
@@ -379,6 +384,7 @@ inline void state_change() {
                         g_control[4] = false;
                         break;
                     case 9:
+                        g_alarm_ignore[4] = true;
                         g_control[5] = true;
                         break;
                     case 10:
@@ -386,6 +392,7 @@ inline void state_change() {
                         g_control[5] = false;
                         break;
                     case 11:
+                        g_alarm_ignore[5] = true;
                         g_control[6] = true;
                         break;
                     case 12:
@@ -450,8 +457,8 @@ void foam_clean() {
     if (g_foam) 
         foam_cleaning_duration++; 
 
-    // after 910 cycles (-> roughly 20 Seconds) turn off cleaning and reset counters
-    if (foam_cleaning_duration >= 910) { 
+    // after 910 cycles (-> roughly 40 Seconds) turn off cleaning and reset counters
+    if (foam_cleaning_duration >= 1920) { 
         g_foam_trigger_counter_long = 0;
         g_foam_trigger_counter = 0;
         g_foam = false;

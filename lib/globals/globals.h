@@ -7,7 +7,7 @@
 
 // general definition
 #define DEVICE   "EFMoST SPS"
-#define VERSION  "1.0.17a"
+#define VERSION  "1.0.18a"
 
 // variable ranges
 #define MinLevel    0       // cm
